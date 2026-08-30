@@ -21,6 +21,8 @@ var draftAdrPath = path.join(projectRoot, "docs", "adr", "0011-encrypt-local-edi
 var safeStateAdrPath = path.join(projectRoot, "docs", "adr", "0012-gate-word-mutations-on-a-safe-document-state.md");
 var sessionAdrPath = path.join(projectRoot, "docs", "adr", "0013-isolate-document-sessions-and-serialize-writes.md");
 var atomicAdrPath = path.join(projectRoot, "docs", "adr", "0014-make-word-changes-atomic-and-undoable.md");
+var spikeAdrPath = path.join(projectRoot, "docs", "adr", "0015-prove-high-risk-integrations-before-feature-development.md");
+var corpusAdrPath = path.join(projectRoot, "docs", "adr", "0016-version-the-release-validation-corpus.md");
 
 function read(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -40,6 +42,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*正式发行版\*\*/);
   assert.match(context, /闭源桌面产品和签名安装包/);
   assert.match(context, /\*\*核心首发\*\*/);
+  assert.match(context, /\*\*前置可行性门槛\*\*/);
   assert.match(context, /\*\*LaTeX 源码\*\*/);
   assert.match(context, /权威语义来源/);
   assert.match(context, /\*\*分歧公式\*\*/);
@@ -50,6 +53,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*基本编号\*\*/);
   assert.match(context, /\*\*公式引用\*\*/);
   assert.match(context, /\*\*源码可移植复制\*\*/);
+  assert.match(context, /\*\*可复制元数据载体\*\*/);
   assert.match(context, /\*\*文档内源码\*\*/);
   assert.match(context, /\*\*未映射公式\*\*/);
   assert.match(context, /\*\*受管理引用\*\*/);
@@ -62,6 +66,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*TeX 安装\*\*/);
   assert.match(context, /\*\*渲染配置\*\*/);
   assert.match(context, /\*\*首发引擎\*\*/);
+  assert.match(context, /\*\*TeX 支持窗口\*\*/);
   assert.match(context, /\*\*文档环境要求\*\*/);
   assert.match(context, /\*\*公式覆盖配置\*\*/);
   assert.match(context, /\*\*兼容映射\*\*/);
@@ -71,6 +76,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*首发交换能力\*\*/);
   assert.match(context, /\*\*公式片段\*\*/);
   assert.match(context, /\*\*受保护草稿\*\*/);
+  assert.match(context, /\*\*完整脱敏日志\*\*/);
   assert.match(context, /\*\*兼容元数据\*\*/);
   assert.match(context, /\*\*文档会话\*\*/);
   assert.match(context, /\*\*原子 Word 操作\*\*/);
@@ -80,6 +86,11 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*受控 TeX 根\*\*/);
   assert.match(context, /\*\*受保护文档\*\*/);
   assert.match(context, /\*\*用户级安装\*\*/);
+  assert.match(context, /\*\*Word 支持窗口\*\*/);
+  assert.match(context, /\*\*不可放宽安全上限\*\*/);
+  assert.match(context, /\*\*一致性更新\*\*/);
+  assert.match(context, /\*\*更新信任链\*\*/);
+  assert.match(context, /\*\*发布验证语料\*\*/);
 });
 
 test("accepted ADRs preserve formula authority and document trust decisions", function () {
@@ -97,6 +108,8 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   var safeStateAdr = read(safeStateAdrPath);
   var sessionAdr = read(sessionAdrPath);
   var atomicAdr = read(atomicAdrPath);
+  var spikeAdr = read(spikeAdrPath);
+  var corpusAdr = read(corpusAdrPath);
 
   assert.match(sourceAdr, /status: accepted/);
   assert.match(sourceAdr, /LaTeX source as the authoritative semantic state/);
@@ -109,18 +122,21 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(copyAdr, /status: accepted/);
   assert.match(copyAdr, /pasted instance receives a new UUID/);
   assert.match(copyAdr, /FormulaBridge 1\.0 release gate/);
+  assert.match(copyAdr, /Custom XML is only a candidate carrier/);
   assert.match(mappingAdr, /status: accepted/);
   assert.match(mappingAdr, /explicitly maps those requirements to a compatible local render profile/);
   assert.match(mappingAdr, /recompilation and replacement are blocked/);
   assert.match(isolationAdr, /status: accepted/);
   assert.match(isolationAdr, /cannot read outside its explicitly allowed/);
   assert.match(isolationAdr, /cannot directly reference arbitrary document or user paths/);
-  assert.match(isolationAdr, /adversarial tests rather than relying on a warning/);
+  assert.match(isolationAdr, /restricted child-process identity, Job Object limits/);
+  assert.match(isolationAdr, /a document cannot relax them/);
   assert.match(metadataAdr, /status: accepted/);
   assert.match(metadataAdr, /plain Custom XML inside the Word document package/);
   assert.match(distributionAdr, /status: accepted/);
   assert.match(distributionAdr, /closed-source Windows desktop product/);
   assert.match(distributionAdr, /commercial licensing system are not FormulaBridge 1\.0 release gates/);
+  assert.match(distributionAdr, /embedded trust root verifies signed manifests and packages/);
   assert.match(compatibilityAdr, /status: accepted/);
   assert.match(compatibilityAdr, /refuses to downgrade or overwrite the metadata/);
   assert.match(compatibilityAdr, /marks the formula as detached/);
@@ -138,4 +154,10 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(atomicAdr, /status: accepted/);
   assert.match(atomicAdr, /commits visible content with its metadata atomically/);
   assert.match(atomicAdr, /orphan metadata is removed only by an explicit repair action/);
+  assert.match(spikeAdr, /status: accepted/);
+  assert.match(spikeAdr, /does not begin broad feature implementation until executable spikes prove/);
+  assert.match(spikeAdr, /TeX filesystem isolation/);
+  assert.match(corpusAdr, /status: accepted/);
+  assert.match(corpusAdr, /versioned, non-sensitive corpus/);
+  assert.match(corpusAdr, /one-thousand-formula document/);
 });
