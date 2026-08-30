@@ -1,0 +1,42 @@
+"use strict";
+
+var test = require("node:test");
+var assert = require("node:assert/strict");
+var fs = require("node:fs");
+var path = require("node:path");
+
+var projectRoot = path.resolve(__dirname, "..");
+var contextPath = path.join(projectRoot, "CONTEXT.md");
+var sourceAdrPath = path.join(projectRoot, "docs", "adr", "0001-latex-is-authoritative-formula-source.md");
+var trustAdrPath = path.join(projectRoot, "docs", "adr", "0002-document-tex-is-untrusted.md");
+
+function read(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+test("domain glossary defines the accepted FormulaBridge language", function () {
+  var context = read(contextPath);
+
+  assert.match(context, /\*\*首要用户\*\*/);
+  assert.match(context, /个人科研用户/);
+  assert.match(context, /\*\*FormulaBridge 1\.0\*\*/);
+  assert.match(context, /可以正式使用的核心版本/);
+  assert.match(context, /\*\*LaTeX 源码\*\*/);
+  assert.match(context, /权威语义来源/);
+  assert.match(context, /\*\*TeX 安装\*\*/);
+  assert.match(context, /\*\*渲染配置\*\*/);
+  assert.match(context, /\*\*文档环境要求\*\*/);
+  assert.match(context, /\*\*公式覆盖配置\*\*/);
+});
+
+test("accepted ADRs preserve formula authority and document trust decisions", function () {
+  var sourceAdr = read(sourceAdrPath);
+  var trustAdr = read(trustAdrPath);
+
+  assert.match(sourceAdr, /status: accepted/);
+  assert.match(sourceAdr, /LaTeX source as the authoritative semantic state/);
+  assert.match(sourceAdr, /instead of attempting an automatic bidirectional merge/);
+  assert.match(trustAdr, /status: accepted/);
+  assert.match(trustAdr, /never compiled automatically/);
+  assert.match(trustAdr, /FormulaBridge 1\.0 does not expose shell escape/);
+});
