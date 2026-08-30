@@ -9,6 +9,8 @@ Last updated: 2026-08-30
 - Common-symbol, fraction, radical, script, styled-text, and matrix AST support.
 - Native OMML generation for inline, display, and numbered equations.
 - WordApi 1.1 task-pane baseline using ES5-compatible runtime syntax.
+- Aurora-inspired clean-room desktop workflow: menu bar, formula toolbar, line-numbered source editor, preview/error/output tabs, properties dialog, and status bar.
+- Formula structure insertion, live/manual refresh, keyboard shortcuts, responsive 380 px task-pane layout, and saved editor preferences.
 - Insert, load selected source, and update selected formula workflows.
 - Document-local source metadata using Office document settings.
 - Static CSS fallbacks for legacy Word webviews.
@@ -19,9 +21,10 @@ Last updated: 2026-08-30
 
 - `npm run check`: all runtime and tooling JavaScript passes syntax checks.
 - `npm test`: 13 parser, OMML, HTML-safety, and metadata-store tests pass.
+- `npm run test:ui`: real Chrome interaction tests pass for menus, snippets, diagnostics, properties, and preview; 380 px and 1080 px layouts have no page overflow.
 - Manifest XML parses successfully and declares WordApi 1.1.
 - Local HTTP task pane and core resources return HTTP 200.
-- Headless Edge rendering shows a working narrow task-pane layout and live preview.
+- Chrome DevTools rendering verifies stacked narrow and side-by-side wide layouts with live preview.
 - A generated DOCX opens read-only in an unextended Word session and exposes native `OMaths`, FormulaBridge content controls, and a Word numbering field.
 
 ## Known limitations
@@ -38,4 +41,3 @@ Last updated: 2026-08-30
 ## Next milestone
 
 Configure trusted HTTPS sideloading and run an end-to-end Word 2016 test matrix before adding portable per-object metadata, cross-document copy/paste, and legacy object migration.
-

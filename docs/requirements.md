@@ -39,6 +39,7 @@ Windows 10 and Office 2016 are outside Microsoft support. FormulaBridge compatib
 ## Functional baseline
 
 - LaTeX source editing with syntax diagnostics and live preview.
+- Desktop-editor interaction model with conventional menus, a common-structure toolbar, source/preview/log panes, a properties dialog, and documented keyboard shortcuts; all visual assets and implementation remain independently created.
 - Inline, display, and numbered equations.
 - Insert and update selected FormulaBridge equations.
 - Fractions, roots, subscripts, superscripts, common Greek letters, common operators, text, font styles, and matrices.
@@ -64,4 +65,3 @@ Windows 10 and Office 2016 are outside Microsoft support. FormulaBridge compatib
 - Source metadata survives document save and reopen.
 - Invalid LaTeX produces a diagnostic without mutating the document.
 - Word 2016 paths use no API later than WordApi 1.1 unless protected by runtime capability detection.
-

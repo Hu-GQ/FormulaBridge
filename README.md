@@ -18,9 +18,10 @@ This repository contains the first runnable MVP:
 - a dependency-free LaTeX parser;
 - OMML generation for common formula structures;
 - a lightweight HTML preview renderer;
-- an Office.js task pane and Word add-in manifest;
+- a desktop-style Office.js editor with menus, structure toolbar, source/preview panes, diagnostics, properties, and keyboard shortcuts;
+- a Word add-in manifest;
 - document-local formula metadata storage;
-- automated parser and writer tests.
+- automated parser/writer tests and a real-browser UI smoke test.
 
 Legacy Aurora object migration and the optional VSTO adapter are designed but not yet implemented.
 
@@ -30,6 +31,12 @@ Run the tests:
 
 ```powershell
 npm test
+```
+
+With the local server running, execute the interactive UI smoke test (Chrome required):
+
+```powershell
+npm run test:ui
 ```
 
 Start the local development server:
