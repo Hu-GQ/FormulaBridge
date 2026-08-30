@@ -318,8 +318,8 @@ FormulaBridge 调用可执行文件的绝对路径，不依赖或修改系统 `P
 
 ```text
 Microsoft Word
-  |-- Office.js 任务窗格与基础命令
-  |-- x64 VSTO 桥接：Ribbon、双击、选择事件、快捷键、迁移入口
+  |-- x64 VSTO 主插件：Ribbon、Word 事件、内容插入、迁移入口
+  |-- WebView2 编辑器：任务窗格、浮动窗口、源码、预览和设置
   |
   v
 FormulaBridge Core
@@ -341,13 +341,14 @@ OMML fast path     FormulaBridge.RenderHost.exe
 
 ### 8.1 组件职责
 
-- **Office.js 适配器**：提供现代 Word 任务窗格、基础文档操作和潜在跨平台入口。
-- **VSTO 桥接插件**：只处理 Windows Word 深度集成，不承载解析器或 TeX 编译。
+- **VSTO Word 插件**：作为 Windows 首发主集成层，处理 Ribbon、任务窗格、Word 事件和文档操作，但不在 Word 进程内执行 TeX 编译。
+- **WebView2 编辑器**：承载 TypeScript 编辑界面，复用任务窗格与浮动窗口的源码、预览、错误和设置功能。
 - **FormulaBridge Core**：负责语义解析、OMML、元数据、编号和一致性规则。
 - **RenderHost**：独立的每用户进程，负责环境检测、受限进程启动、输出转换和日志。
 - **迁移助手**：必要时使用独立 32 位进程读取旧 32 位 OLE 对象，并把结果交给现代核心。
+- **Office.js 适配器**：作为后续 macOS、Word 网页版或轻量体验的可选入口，不是 Windows 首发主集成层。
 
-Office.js 不直接启动系统进程。它通过经过身份验证的本地接口与 RenderHost 通信；VSTO 优先通过 Named Pipe 与 RenderHost 通信。接口必须限定调用来源、请求大小、并发和超时。
+WebView2 通过受控 Web Message 与 VSTO 宿主通信，VSTO 通过当前用户可访问的 Named Pipe 调用 RenderHost。正式版本不开放本地 HTTP 编译接口。接口必须限定调用来源、请求大小、并发和超时。
 
 ## 9. 文档与数据模型
 

@@ -12,7 +12,7 @@ The approved product direction targets:
 - inline, display, and numbered equations;
 - document-local LaTeX source metadata for re-editing.
 
-The approved product experience, functional scope, architecture, security model, acceptance criteria, and release roadmap are defined in [docs/product-design.md](docs/product-design.md).
+The approved product experience and functional scope are defined in [docs/product-design.md](docs/product-design.md). The target Windows engineering stack and implementation approach are defined in [docs/technical-solution.md](docs/technical-solution.md).
 
 ## Current status
 
@@ -58,4 +58,4 @@ powershell -ExecutionPolicy Bypass -File tools/word-smoke-test.ps1
 
 The test builds a minimal DOCX containing FormulaBridge-generated OMML, opens it in Word without loading the add-in, and verifies that Word detects both the native equation and its content control.
 
-See [docs/product-design.md](docs/product-design.md) for the approved product direction, and [docs/requirements.md](docs/requirements.md) plus [docs/architecture.md](docs/architecture.md) for the current MVP engineering baseline.
+See [docs/product-design.md](docs/product-design.md) for the approved product direction, [docs/technical-solution.md](docs/technical-solution.md) for the target implementation, and [docs/requirements.md](docs/requirements.md) plus [docs/architecture.md](docs/architecture.md) for the current Office.js MVP engineering baseline.
