@@ -7,6 +7,7 @@ var path = require("path");
 
 var root = path.resolve(__dirname, "..");
 var port = Number(process.env.FORMULABRIDGE_PORT || 3000);
+var forceHttp = process.env.FORMULABRIDGE_FORCE_HTTP === "1";
 var certPath = path.join(root, "certs", "localhost.crt");
 var keyPath = path.join(root, "certs", "localhost.key");
 var mimeTypes = {
@@ -45,7 +46,7 @@ function handler(request, response) {
 
 var server;
 var protocol;
-if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+if (!forceHttp && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   server = https.createServer({ cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }, handler);
   protocol = "https";
 } else {

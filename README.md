@@ -2,14 +2,17 @@
 
 FormulaBridge is an independently developed LaTeX equation editor for Microsoft Word. It is not affiliated with, endorsed by, or derived from Elevator Lady Inc. or its Aurora product.
 
-The first development milestone targets:
+The approved product direction targets:
 
-- Windows 10/11;
-- Word 2016 (WordApi 1.1 baseline), Microsoft 365, and Word 2024;
+- Windows 11 with Microsoft 365 Word and Word/Office 2024 as the primary supported environment;
 - editable native Word equations (OMML) for supported LaTeX;
+- a signed local rendering host for TeX Live, MiKTeX, and multiple selectable TeX environments;
+- embedded SVG with a PNG fallback for complex LaTeX that cannot be represented faithfully in OMML;
 - embedded, self-contained document output that remains readable without FormulaBridge;
 - inline, display, and numbered equations;
 - document-local LaTeX source metadata for re-editing.
+
+The approved product experience, functional scope, architecture, security model, acceptance criteria, and release roadmap are defined in [docs/product-design.md](docs/product-design.md).
 
 ## Current status
 
@@ -55,4 +58,4 @@ powershell -ExecutionPolicy Bypass -File tools/word-smoke-test.ps1
 
 The test builds a minimal DOCX containing FormulaBridge-generated OMML, opens it in Word without loading the add-in, and verifies that Word detects both the native equation and its content control.
 
-See [docs/requirements.md](docs/requirements.md) and [docs/architecture.md](docs/architecture.md) for the product baseline and technical design.
+See [docs/product-design.md](docs/product-design.md) for the approved product direction, and [docs/requirements.md](docs/requirements.md) plus [docs/architecture.md](docs/architecture.md) for the current MVP engineering baseline.

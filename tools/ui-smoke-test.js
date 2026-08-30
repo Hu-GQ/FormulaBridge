@@ -8,10 +8,11 @@ var path = require("path");
 
 var root = path.resolve(__dirname, "..");
 var chromePath = process.env.FORMULABRIDGE_CHROME || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-var pageUrl = process.env.FORMULABRIDGE_URL || "http://localhost:3000/app/taskpane.html";
+var pageUrl = process.env.FORMULABRIDGE_URL || null;
 var artifacts = path.join(root, "artifacts");
 var profile = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-ui-"));
 var browserProcess = null;
+var serverProcess = null;
 
 function delay(milliseconds) {
   return new Promise(function (resolve) {
@@ -46,6 +47,27 @@ async function waitForTargets(port) {
     await delay(125);
   }
   throw new Error("Chrome DevTools endpoint did not become ready.");
+}
+
+async function waitForPage(url) {
+  var attempts = 0;
+  var response;
+  while (attempts < 80) {
+    attempts += 1;
+    if (serverProcess && serverProcess.exitCode !== null) {
+      throw new Error("FormulaBridge development server exited before becoming ready.");
+    }
+    try {
+      response = await fetch(url);
+      if (response.ok) {
+        return;
+      }
+    } catch (error) {
+      // The child server may still be binding its local port.
+    }
+    await delay(125);
+  }
+  throw new Error("FormulaBridge development server did not become ready.");
 }
 
 function connect(url) {
@@ -105,7 +127,8 @@ async function waitForEditor(client) {
     }
     await delay(100);
   }
-  throw new Error("FormulaBridge UI did not initialize.");
+  ready = await evaluate(client, "JSON.stringify({ readyState: document.readyState, status: document.getElementById('status') && document.getElementById('status').textContent, title: document.title, body: document.body && document.body.innerText.slice(0, 160) })");
+  throw new Error("FormulaBridge UI did not initialize. Page state: " + ready);
 }
 
 async function saveScreenshot(client, fileName) {
@@ -125,7 +148,8 @@ function assert(condition, message) {
 }
 
 async function run() {
-  var port = await getFreePort();
+  var debugPort;
+  var serverPort;
   var targets;
   var pageTarget;
   var client;
@@ -136,17 +160,31 @@ async function run() {
   if (!fs.existsSync(chromePath)) {
     throw new Error("Chrome executable not found: " + chromePath);
   }
+  if (!pageUrl) {
+    serverPort = await getFreePort();
+    pageUrl = "http://127.0.0.1:" + serverPort + "/app/taskpane.html";
+    serverProcess = childProcess.spawn(process.execPath, [path.join(root, "tools", "dev-server.js")], {
+      cwd: root,
+      env: Object.assign({}, process.env, {
+        FORMULABRIDGE_FORCE_HTTP: "1",
+        FORMULABRIDGE_PORT: String(serverPort)
+      }),
+      stdio: "ignore"
+    });
+    await waitForPage(pageUrl);
+  }
+  debugPort = await getFreePort();
   browserProcess = childProcess.spawn(chromePath, [
     "--headless",
     "--disable-gpu",
     "--no-sandbox",
     "--no-first-run",
-    "--remote-debugging-port=" + port,
+    "--remote-debugging-port=" + debugPort,
     "--user-data-dir=" + profile,
     "about:blank"
   ], { stdio: "ignore" });
 
-  targets = await waitForTargets(port);
+  targets = await waitForTargets(debugPort);
   pageTarget = targets.filter(function (target) { return target.type === "page"; })[0];
   if (!pageTarget) {
     throw new Error("No Chrome page target was created.");
@@ -154,6 +192,10 @@ async function run() {
   client = await connect(pageTarget.webSocketDebuggerUrl);
   await client.call("Page.enable");
   await client.call("Runtime.enable");
+  await client.call("Network.enable");
+  await client.call("Network.setBlockedURLs", {
+    urls: ["https://appsforoffice.microsoft.com/*"]
+  });
   await client.call("Emulation.setDeviceMetricsOverride", {
     width: 380,
     height: 1000,
@@ -258,5 +300,13 @@ run().catch(function (error) {
 }).finally(function () {
   if (browserProcess && browserProcess.exitCode === null) {
     browserProcess.kill();
+  }
+  if (serverProcess && serverProcess.exitCode === null) {
+    serverProcess.kill();
+  }
+  try {
+    fs.rmSync(profile, { force: true, recursive: true });
+  } catch (error) {
+    // Chrome can hold its temporary profile briefly after Browser.close.
   }
 });
