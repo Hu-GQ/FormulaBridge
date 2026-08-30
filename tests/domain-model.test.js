@@ -25,6 +25,9 @@ var spikeAdrPath = path.join(projectRoot, "docs", "adr", "0015-prove-high-risk-i
 var corpusAdrPath = path.join(projectRoot, "docs", "adr", "0016-version-the-release-validation-corpus.md");
 var verticalAdrPath = path.join(projectRoot, "docs", "adr", "0017-build-a-vertical-product-loop-before-broad-features.md");
 var migrationAdrPath = path.join(projectRoot, "docs", "adr", "0018-isolate-legacy-migration-from-the-core-release.md");
+var numberingAdrPath = path.join(projectRoot, "docs", "adr", "0019-use-native-word-fields-for-basic-numbering.md");
+var ipcAdrPath = path.join(projectRoot, "docs", "adr", "0020-authenticate-every-renderhost-session.md");
+var releaseAdrPath = path.join(projectRoot, "docs", "adr", "0021-refuse-release-on-trust-contract-failures.md");
 
 function read(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -50,12 +53,14 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*LaTeX 源码\*\*/);
   assert.match(context, /权威语义来源/);
   assert.match(context, /\*\*分歧公式\*\*/);
+  assert.match(context, /\*\*无损 OMML 反向导入\*\*/);
   assert.match(context, /\*\*公式身份\*\*/);
   assert.match(context, /复制创建新身份/);
   assert.match(context, /\*\*公式标签\*\*/);
   assert.match(context, /\*\*标签冲突\*\*/);
   assert.match(context, /\*\*身份冲突\*\*/);
   assert.match(context, /\*\*基本编号\*\*/);
+  assert.match(context, /\*\*字段编号\*\*/);
   assert.match(context, /\*\*公式引用\*\*/);
   assert.match(context, /\*\*源码可移植复制\*\*/);
   assert.match(context, /\*\*可复制元数据载体\*\*/);
@@ -86,6 +91,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*受保护草稿\*\*/);
   assert.match(context, /\*\*完整脱敏日志\*\*/);
   assert.match(context, /\*\*兼容元数据\*\*/);
+  assert.match(context, /\*\*确认式元数据迁移\*\*/);
   assert.match(context, /\*\*文档会话\*\*/);
   assert.match(context, /\*\*原子 Word 操作\*\*/);
   assert.match(context, /\*\*两阶段批量更新\*\*/);
@@ -99,9 +105,14 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*不可放宽安全上限\*\*/);
   assert.match(context, /\*\*一致性更新\*\*/);
   assert.match(context, /\*\*更新信任链\*\*/);
+  assert.match(context, /\*\*选择加入更新\*\*/);
   assert.match(context, /\*\*发布验证语料\*\*/);
+  assert.match(context, /\*\*本地保留策略\*\*/);
+  assert.match(context, /\*\*不可豁免发布阻断项\*\*/);
   assert.match(context, /\*\*外部诊断与修复\*\*/);
   assert.match(context, /\*\*先决条件降级状态\*\*/);
+  assert.match(context, /\*\*VBA 不透明性\*\*/);
+  assert.match(context, /\*\*本地调用凭证\*\*/);
   assert.match(context, /\*\*迁移助手\*\*/);
   assert.match(context, /\*\*字体要求\*\*/);
 });
@@ -125,10 +136,15 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   var corpusAdr = read(corpusAdrPath);
   var verticalAdr = read(verticalAdrPath);
   var migrationAdr = read(migrationAdrPath);
+  var numberingAdr = read(numberingAdrPath);
+  var ipcAdr = read(ipcAdrPath);
+  var releaseAdr = read(releaseAdrPath);
 
   assert.match(sourceAdr, /status: accepted/);
   assert.match(sourceAdr, /LaTeX source as the authoritative semantic state/);
   assert.match(sourceAdr, /instead of attempting an automatic bidirectional merge/);
+  assert.match(sourceAdr, /only when Core proves a lossless conversion/);
+  assert.match(sourceAdr, /never guessed, reverse-engineered, or sent through OCR/);
   assert.match(trustAdr, /status: accepted/);
   assert.match(trustAdr, /never compiled merely because the document opens/);
   assert.match(trustAdr, /FormulaBridge 1\.0 does not expose shell escape/);
@@ -155,9 +171,11 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(distributionAdr, /commercial licensing system are not FormulaBridge 1\.0 release gates/);
   assert.match(distributionAdr, /embedded trust root verifies signed manifests and packages/);
   assert.match(distributionAdr, /installs an external diagnostic and repair entry point/);
+  assert.match(distributionAdr, /preview and all periodic network checks are opt-in/);
   assert.match(compatibilityAdr, /status: accepted/);
   assert.match(compatibilityAdr, /refuses to downgrade or overwrite the metadata/);
   assert.match(compatibilityAdr, /marks the formula as detached/);
+  assert.match(compatibilityAdr, /migrates only on the user's first confirmed write/);
   assert.match(fallbackAdr, /status: accepted/);
   assert.match(fallbackAdr, /embeds a sanitized SVG together with a PNG fallback/);
   assert.match(fallbackAdr, /ordinary copy, print, and PDF export is a release gate/);
@@ -166,6 +184,7 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(safeStateAdr, /status: accepted/);
   assert.match(safeStateAdr, /Track Changes, active real-time coauthoring/);
   assert.match(safeStateAdr, /saved as a new supported-format copy/);
+  assert.match(safeStateAdr, /never reads, executes, or modifies VBA/);
   assert.match(sessionAdr, /status: accepted/);
   assert.match(sessionAdr, /Each Word document window owns an independent/);
   assert.match(sessionAdr, /writes are serialized per document/);
@@ -185,4 +204,13 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(migrationAdr, /status: accepted/);
   assert.match(migrationAdr, /explicit FormulaBridge 1\.x assistant/);
   assert.match(migrationAdr, /always writes a new document plus an audit report/);
+  assert.match(numberingAdr, /status: accepted/);
+  assert.match(numberingAdr, /native Word `SEQ` and `REF` fields plus bookmarks/);
+  assert.match(numberingAdr, /Chapter-aware numbering is deferred to 1\.1/);
+  assert.match(ipcAdr, /status: accepted/);
+  assert.match(ipcAdr, /fresh random capability token/);
+  assert.match(ipcAdr, /required in addition to Pipe ACLs/);
+  assert.match(releaseAdr, /status: accepted/);
+  assert.match(releaseAdr, /cannot release with any known document corruption or data loss/);
+  assert.match(releaseAdr, /schedule pressure cannot waive/);
 });
