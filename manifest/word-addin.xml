@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xsi:type="TaskPaneApp">
+  <Id>5ef41a63-f77c-4d92-8cda-0a83e2ac68ae</Id>
+  <Version>0.1.0.0</Version>
+  <ProviderName>FormulaBridge Project</ProviderName>
+  <DefaultLocale>zh-CN</DefaultLocale>
+  <DisplayName DefaultValue="FormulaBridge"/>
+  <Description DefaultValue="Create portable Word equations from LaTeX."/>
+  <IconUrl DefaultValue="https://localhost:3000/assets/app-icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/app-icon-64.png"/>
+  <SupportUrl DefaultValue="https://localhost:3000/docs/requirements.md"/>
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="WordApi" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/app/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>

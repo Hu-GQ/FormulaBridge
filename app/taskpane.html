@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FormulaBridge</title>
+  <link rel="stylesheet" href="/app/styles.css">
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="/src/core/latex-parser.js"></script>
+  <script src="/src/core/omml-writer.js"></script>
+  <script src="/src/core/html-writer.js"></script>
+  <script src="/src/core/index.js"></script>
+  <script src="/src/word/formula-store.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <img src="/assets/app-icon.svg" width="36" height="36" alt="">
+    <div>
+      <h1>FormulaBridge</h1>
+      <p>LaTeX → Word 原生公式</p>
+    </div>
+  </header>
+
+  <main>
+    <label for="source" class="field-label">LaTeX 源码</label>
+    <textarea id="source" spellcheck="false" aria-describedby="source-help">\frac{-b \pm \sqrt{b^2-4ac}}{2a}</textarea>
+    <p id="source-help" class="help">首个版本支持常用符号、分式、根式、上下标、文本和矩阵。</p>
+
+    <fieldset class="mode-picker">
+      <legend>公式类型</legend>
+      <label><input type="radio" name="formula-mode" value="inline" checked> 行内</label>
+      <label><input type="radio" name="formula-mode" value="display"> 独立</label>
+      <label><input type="radio" name="formula-mode" value="numbered"> 编号</label>
+    </fieldset>
+
+    <section aria-labelledby="preview-title">
+      <h2 id="preview-title">预览</h2>
+      <div id="preview" class="preview" role="img" aria-label="公式预览"></div>
+    </section>
+
+    <div id="status" class="status info" role="status" aria-live="polite"></div>
+
+    <div class="primary-actions">
+      <button id="insert-button" type="button" class="primary">插入公式</button>
+      <button id="update-button" type="button">更新所选</button>
+    </div>
+    <button id="load-button" type="button" class="full-width">载入所选公式源码</button>
+
+    <aside class="compatibility-note">
+      生成内容保存在文档内部。未安装 FormulaBridge 的电脑仍可查看和打印公式。
+    </aside>
+  </main>
+  <script src="/src/word/taskpane.js"></script>
+</body>
+</html>
+
