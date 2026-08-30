@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.0.0",
+  "privacy": {
+    "containsPersonalData": false,
+    "provenance": "synthetic"
+  },
+  "entries": [
+    {
+      "id": "word.minimal-document",
+      "category": "word",
+      "path": "word/minimal-document.docx",
+      "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "purpose": "Minimal synthetic Word package for Phase 0 harness and package round-trip checks.",
+      "sha256": "b61c83306b00f3c6d4915d680ef1529ca5beeb1d191bc341bac4b20c965502d2"
+    },
+    {
+      "id": "formula.quadratic",
+      "category": "formula",
+      "path": "formula/minimal-formulas.json",
+      "mediaType": "application/json",
+      "purpose": "Minimal synthetic LaTeX formula baseline.",
+      "sha256": "a47e108307f33efaef176e65f263dcce81b09b3fdd02143b51e2f0df1298210b"
+    },
+    {
+      "id": "malicious-tex.path-traversal",
+      "category": "malicious-tex",
+      "path": "malicious-tex/path-traversal.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Minimal synthetic attempt to read a canary outside the controlled job root.",
+      "sha256": "9bad00fb4ed1416958c25de2463ad6c3f9592d6378291b2fdd6401500c9f8cc6"
+    }
+  ]
+}

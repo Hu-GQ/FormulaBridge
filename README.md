@@ -23,3 +23,7 @@ npm test
 ```
 
 当前测试只验证两份权威文档及其关键决策的一致性。产品源码建立后，应按技术方案逐层增加 TypeScript、.NET、Word、TeX、UI 和安装测试。
+
+## 阶段 0 验证
+
+[阶段 0 证据基线](docs/phase0-evidence.md)提供统一命令、版本化 schema、无隐私语料清单，以及机器可读 JSON 与人类可读 Markdown 报告。它只建立 Issue #1 的证据契约；四项前置样机由各自 ticket 实现。

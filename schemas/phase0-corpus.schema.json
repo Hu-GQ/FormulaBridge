@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://formulabridge.local/schemas/phase0-corpus.schema.json",
+  "title": "FormulaBridge Phase 0 corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "corpusVersion", "privacy", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "corpusVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["containsPersonalData", "provenance"],
+      "properties": {
+        "containsPersonalData": { "const": false },
+        "provenance": { "const": "synthetic" }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "path", "mediaType", "purpose", "sha256"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$" },
+          "category": { "enum": ["word", "formula", "malicious-tex"] },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![A-Za-z]:)(?![/\\\\]).+$"
+          },
+          "mediaType": { "type": "string", "minLength": 1 },
+          "purpose": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}

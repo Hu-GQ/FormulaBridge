@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://formulabridge.local/schemas/phase0-run.schema.json",
+  "title": "FormulaBridge Phase 0 evidence run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "commit",
+    "startedAt",
+    "finishedAt",
+    "environment",
+    "corpus",
+    "checks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "#/$defs/nonEmptyString" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "startedAt": { "$ref": "#/$defs/timestamp" },
+    "finishedAt": { "$ref": "#/$defs/timestamp" },
+    "environment": { "$ref": "#/$defs/environment" },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "manifest"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "manifest": { "$ref": "#/$defs/relativePath" }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/check" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3})?Z$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\]).+$"
+    },
+    "namedVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "availableRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "availability", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "availability": { "const": "available" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "unavailableRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "availability", "reason"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "availability": { "const": "unavailable" },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "availableWord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "version", "channel", "bitness", "language"],
+      "properties": {
+        "availability": { "const": "available" },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "channel": { "$ref": "#/$defs/nonEmptyString" },
+        "bitness": { "enum": ["x64", "x86", "arm64"] },
+        "language": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "unavailableComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "reason"],
+      "properties": {
+        "availability": { "const": "unavailable" },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "availableTex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "installations"],
+      "properties": {
+        "availability": { "const": "available" },
+        "installations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["distribution", "version"],
+            "properties": {
+              "distribution": { "$ref": "#/$defs/nonEmptyString" },
+              "version": { "$ref": "#/$defs/nonEmptyString" }
+            }
+          }
+        }
+      }
+    },
+    "availableSigning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "trustLevel", "tools"],
+      "properties": {
+        "availability": { "const": "available" },
+        "trustLevel": { "enum": ["test", "production"] },
+        "tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/namedVersion" }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["windows", "word", "runtimes", "tex", "signing"],
+      "properties": {
+        "windows": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "build", "architecture", "language"],
+          "properties": {
+            "version": { "$ref": "#/$defs/nonEmptyString" },
+            "build": { "$ref": "#/$defs/nonEmptyString" },
+            "architecture": { "enum": ["x64", "x86", "arm64"] },
+            "language": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        "word": {
+          "oneOf": [
+            { "$ref": "#/$defs/availableWord" },
+            { "$ref": "#/$defs/unavailableComponent" }
+          ]
+        },
+        "runtimes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/availableRuntime" },
+              { "$ref": "#/$defs/unavailableRuntime" }
+            ]
+          }
+        },
+        "tex": {
+          "oneOf": [
+            { "$ref": "#/$defs/availableTex" },
+            { "$ref": "#/$defs/unavailableComponent" }
+          ]
+        },
+        "signing": {
+          "oneOf": [
+            { "$ref": "#/$defs/availableSigning" },
+            { "$ref": "#/$defs/unavailableComponent" }
+          ]
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "kind": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "status", "startedAt", "finishedAt", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "status": { "enum": ["passed", "failed", "blocked", "not-run"] },
+        "reason": { "$ref": "#/$defs/nonEmptyString" },
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "finishedAt": { "$ref": "#/$defs/timestamp" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        }
+      }
+    }
+  }
+}

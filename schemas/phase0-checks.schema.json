@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://formulabridge.local/schemas/phase0-checks.schema.json",
+  "title": "FormulaBridge Phase 0 required check set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "checkSetVersion", "requiredRuntimes", "checks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "checkSetVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "requiredRuntimes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/check" }
+    }
+  },
+  "$defs": {
+    "evidenceKinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "purpose", "requiredEvidenceKinds", "passedEvidenceKinds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "requiredEvidenceKinds": { "$ref": "#/$defs/evidenceKinds" },
+        "passedEvidenceKinds": { "$ref": "#/$defs/evidenceKinds" }
+      }
+    }
+  }
+}

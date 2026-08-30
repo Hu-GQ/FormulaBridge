@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "checkSetVersion": "1.0.0",
+  "requiredRuntimes": [
+    "Node.js",
+    ".NET Framework",
+    ".NET",
+    "VSTO Runtime",
+    "WebView2 Runtime"
+  ],
+  "checks": [
+    {
+      "id": "vsto-installation",
+      "name": "VSTO user-level installation and diagnostics",
+      "purpose": "Prove signed per-user installation, automatic Word loading, and external diagnostics.",
+      "requiredEvidenceKinds": ["result", "log"],
+      "passedEvidenceKinds": ["installer", "signature-report", "word-load-state", "diagnostics-report"]
+    },
+    {
+      "id": "source-portable-copy",
+      "name": "Source-portable ordinary copy",
+      "purpose": "Prove ordinary same-document and cross-document copy preserves source while creating a new identity.",
+      "requiredEvidenceKinds": ["result", "log"],
+      "passedEvidenceKinds": ["docx-package", "word-automation"]
+    },
+    {
+      "id": "dual-format-roundtrip",
+      "name": "SVG and PNG Word round trip",
+      "purpose": "Prove embedded SVG and PNG fallback survive Word save, reopen, copy, print, and PDF export.",
+      "requiredEvidenceKinds": ["result", "log"],
+      "passedEvidenceKinds": ["docx-package", "pdf", "visual-diff"]
+    },
+    {
+      "id": "tex-isolation",
+      "name": "TeX isolation and resource limits",
+      "purpose": "Prove document TeX cannot escape controlled roots or resource and process limits.",
+      "requiredEvidenceKinds": ["result", "log"],
+      "passedEvidenceKinds": ["security-trace", "resource-report"]
+    }
+  ]
+}

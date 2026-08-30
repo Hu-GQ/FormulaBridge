@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "formulas": [
+    {
+      "id": "formula.quadratic",
+      "latex": "x^2 + y^2 = z^2",
+      "purpose": "Synthetic baseline formula with superscripts and binary operators."
+    }
+  ]
+}
