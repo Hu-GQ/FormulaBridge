@@ -16,7 +16,7 @@ function read(filePath) {
 test("README links to the approved FormulaBridge product design", function () {
   var readme = read(readmePath);
   assert.equal(fs.existsSync(designPath), true);
-  assert.match(readme, /\[docs\/product-design\.md\]\(docs\/product-design\.md\)/);
+  assert.match(readme, /\[产品设计文档\]\(docs\/product-design\.md\)/);
 });
 
 test("product design documents the approved product scope and user workflows", function () {

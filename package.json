@@ -5,9 +5,7 @@
   "description": "An independently developed LaTeX equation editor for Microsoft Word.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:ui": "node tools/ui-smoke-test.js",
-    "serve": "node tools/dev-server.js",
-    "check": "node --check src/core/latex-parser.js && node --check src/core/omml-writer.js && node --check src/core/html-writer.js && node --check src/core/index.js && node --check src/word/formula-store.js && node --check src/word/taskpane.js && node --check tools/dev-server.js && node --check tools/create-word-smoke-fixture.js && node --check tools/ui-smoke-test.js"
+    "check": "node --check tests/product-design.test.js && node --check tests/technical-solution.test.js"
   },
   "engines": {
     "node": ">=20"

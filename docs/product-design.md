@@ -8,6 +8,8 @@
 | 更新日期 | 2026-08-30 |
 | 首要平台 | Windows 11 + Microsoft 365 Word / Office 2024 |
 
+> 基线声明：本文档与 [technical-solution.md](technical-solution.md) 是 FormulaBridge 当前唯一的产品和技术依据。仓库历史内容、旧原型和旧规划不构成产品约束；发生冲突时以这两份文档为准。
+
 ## 1. 产品概述
 
 FormulaBridge 是一款面向 Microsoft Word 的本地优先 LaTeX 公式编辑器。它保留高频 LaTeX 用户熟悉的源码输入、编译预览、行内/独立/编号公式、章节编号、交叉引用和快捷编辑逻辑，同时采用适合现代 Word 的文档格式与插件架构。
@@ -493,13 +495,12 @@ WebView2 通过受控 Web Message 与 VSTO 宿主通信，VSTO 通过当前用�
 
 ## 14. 版本路线
 
-### 阶段 0：现有原型
+### 阶段 0：设计基线
 
-- 内置 LaTeX 子集解析器。
-- OMML 生成和 HTML 预览。
-- Office.js 任务窗格。
-- 行内、独立、编号插入。
-- 文档级源码记录和基础测试。
+- 确认产品定位、主要功能与发布边界。
+- 确认 VSTO、WebView2、TypeScript 和独立 RenderHost 技术路线。
+- 确认 OMML 优先、本地 TeX 回退和多环境配置原则。
+- 建立产品与技术文档契约测试。
 
 ### 阶段 1：本地 TeX 基础
 
@@ -542,7 +543,7 @@ WebView2 通过受控 Web Message 与 VSTO 宿主通信，VSTO 通过当前用�
 
 | 风险 | 影响 | 处理策略 |
 | --- | --- | --- |
-| Office.js 无法直接启动本地 TeX | 无法仅靠任务窗格完成复杂渲染 | 使用独立 RenderHost，并由 VSTO 或受保护的本地接口调用 |
+| VSTO 安装与运行时依赖较多 | 安装失败会导致功能区不出现 | 使用签名 MSI、先决条件检测、修复入口和干净虚拟机测试 |
 | OMML 与完整 LaTeX 表达能力不同 | 转换结果可能降级 | 语义校验，无法可靠转换时使用 SVG 回退 |
 | 多 TeX 环境结果不一致 | 同一源码在不同机器排版不同 | 保存环境能力要求，显式映射，不静默切换 |
 | TeX 输入可触发危险操作 | 本地文件和系统安全风险 | 禁用 shell escape、隔离目录、超时、允许列表和进程限制 |
@@ -556,7 +557,7 @@ WebView2 通过受控 Web Message 与 VSTO 宿主通信，VSTO 通过当前用�
 - 旧公式对象通过 `Equation.Ribbit` OLE ProgID 注册，Office 插件通过 `Aurora.Connect` 注册。
 - 原版调用 `latex`、`pdflatex` 和 `dvipng`，并使用 `preview`、`anyfontsize`、`amsmath` 和 `amssymb`。
 - 当前开发机的 TeX Live 2024 已成功完成 LaTeX → DVI、DVI → PNG、DVI → SVG 和 pdfLaTeX → PDF 烟雾测试。
-- 当前 FormulaBridge 原型已经能够生成原生 OMML，并通过现有自动化测试。
+- 已确认采用 VSTO + WebView2 + 独立 RenderHost 的 Windows 首发架构，并从干净代码基线实施。
 
 这些事实证明总体方案可行，但旧公式源码的无损提取仍需要真实 Aurora 文档样本验证。
 

@@ -9,6 +9,8 @@
 | 更新日期 | 2026-08-30 |
 | 首发平台 | Windows 11 x64 + Microsoft 365 Word / Office 2024 x64 |
 
+> 基线声明：本文档与 [product-design.md](product-design.md) 是 FormulaBridge 当前唯一的产品和技术依据。仓库历史内容、旧原型和旧规划不构成实现约束；后续工程以本文档描述的目标架构从干净基线开始。
+
 ## 1. 目的与范围
 
 本文档把《FormulaBridge 产品设计文档》转化为可以实施的技术路线，确定首发版本的主要技术栈、运行时边界、关键数据流、安装方式和质量策略。
@@ -16,7 +18,7 @@
 本方案重点回答以下问题：
 
 - FormulaBridge 如何安装并深度集成到新版 Word。
-- 如何复用现有网页编辑器，同时获得接近 Aurora 的交互体验。
+- 如何实现接近 Aurora 操作习惯的现代可视化编辑器。
 - 如何安全调用用户本机的多个 TeX 环境。
 - 如何在 OMML 原生公式与 TeX 高保真输出之间选择。
 - 如何保证 Word、编辑器和 TeX 编译相互隔离。
@@ -31,8 +33,8 @@ FormulaBridge 首发采用“原生 Word 宿主 + Web 技术编辑器 + 独立�
 | 层次 | 首选技术 | 主要原因 |
 | --- | --- | --- |
 | Word 集成 | C#、VSTO、.NET Framework 4.8、Office Interop | 能稳定实现 Ribbon、任务窗格、Word 事件和深度文档操作 |
-| 编辑界面 | WebView2、TypeScript、React、CodeMirror 6 | 适合源码编辑与预览，可复用现有 HTML/JavaScript 原型 |
-| 公式核心 | TypeScript、版本化 AST、OMML writer | 延续现有代码，保证浏览器预览和 Word 输出语义一致 |
+| 编辑界面 | WebView2、TypeScript、React、CodeMirror 6 | 适合实现源码编辑、即时诊断和可视化预览 |
+| 公式核心 | TypeScript、版本化 AST、OMML writer | 保证浏览器预览和 Word 输出使用同一语义模型 |
 | 本地渲染 | C#、.NET 10 LTS、独立 `FormulaBridge.RenderHost.exe` | 使用现代运行时并与 Word 进程隔离 |
 | 本地通信 | WebView2 Web Message、Named Pipe、版本化 JSON 协议 | 不开放生产环境 HTTP 端口，便于鉴权、取消和诊断 |
 | Word 文件处理 | Office Interop、Open XML SDK | 分别覆盖 Word 在线操作和 DOCX 包级检查/迁移 |
@@ -147,7 +149,7 @@ VSTO 自定义任务窗格使用 WinForms `UserControl` 作为宿主，内部放
 - HTML/CSS 负责 Aurora 风格的菜单、工具栏、源码区和输出区。
 - WebView2 作为 Windows 桌面运行容器。
 
-现有 `app/`、`src/core/` 和 `src/word/taskpane.js` 原型不推倒重写。第一阶段先保持现有行为和测试，再逐模块迁移到 TypeScript 和组件化界面。
+编辑器按照本方案从干净的 TypeScript 工程建立。界面可以借鉴已经确认的操作流程，但不得受仓库历史原型的代码结构、兼容基线或技术债约束。
 
 ### 5.2 前端职责
 
@@ -181,7 +183,7 @@ VSTO 自定义任务窗格使用 WinForms `UserControl` 作为宿主，内部放
 
 ### 6.1 技术与边界
 
-FormulaBridge Core 继续使用 JavaScript/TypeScript，并逐步整理为不依赖 DOM、Office.js、Node.js 文件系统和 TeX 可执行文件的纯核心库。
+FormulaBridge Core 从一开始使用 TypeScript，实现为不依赖 DOM、Office.js、Node.js 文件系统和 TeX 可执行文件的纯核心库。
 
 核心输入是 LaTeX 源码和公式选项，输出是：
 
@@ -200,15 +202,15 @@ FormulaBridge Core 继续使用 JavaScript/TypeScript，并逐步整理为不依
 - AST、文档元数据和进程协议分别拥有独立版本号。
 - Core 可以在 WebView2 和自动化测试中运行，不依赖 Word。
 
-### 6.3 复用现有原型
+### 6.3 初始实现顺序
 
-现有代码的迁移顺序建议为：
+核心实现顺序建议为：
 
-1. 为当前 JavaScript API 补齐测试并冻结行为。
-2. 启用 TypeScript `checkJs` 或逐文件转换 `.ts`。
-3. 把 Word 特定逻辑从核心包中彻底移出。
-4. 增加能力分析器，决定 OMML 路径或 TeX 路径。
-5. 引入版本化消息和元数据类型。
+1. 定义版本化 AST、诊断、渲染请求和元数据类型。
+2. 实现带源码位置的 LaTeX 解析器及单元测试。
+3. 实现 OMML writer、XML 安全测试和 Word 样例验证。
+4. 实现能力分析器，决定 OMML 路径或 TeX 路径。
+5. 实现安全快速预览，并与前端编辑器集成。
 
 ## 7. 本地 TeX 渲染服务
 
@@ -516,14 +518,15 @@ Open XML SDK 主要用于 DOCX 包结构验证、批量检查、迁移和不启�
 
 ## 15. 建议的代码组织
 
-在不立即破坏现有 MVP 的前提下，目标结构建议为：
+目标代码结构建议为：
 
 ```text
 FormulaBridge/
-  app/                              当前网页原型，迁移期间保留
+  docs/
+    product-design.md
+    technical-solution.md
   src/
-    core/                           当前 JavaScript 核心
-    word/                           当前 Office.js 适配器
+    core/                           TypeScript 解析、AST、OMML 与预览
     desktop/
       FormulaBridge.sln
       FormulaBridge.WordAddIn/      VSTO / .NET Framework 4.8
@@ -539,10 +542,9 @@ FormulaBridge/
     ui/
     installer/
   installer/                        WiX Toolset 4
-  docs/
 ```
 
-目录迁移应分阶段进行，不为追求结构整齐而中断当前可运行原型。每次迁移必须先保留或补齐行为测试。
+代码从上述目标结构逐阶段建立。每个新组件必须与对应测试同时落地，不引入仅为兼容仓库历史原型而存在的适配层。
 
 ## 16. 构建与开发环境
 
@@ -567,7 +569,7 @@ FormulaBridge/
 | --- | --- | --- |
 | Core 单元测试 | Node Test，后续可迁移 Vitest | 解析、AST、OMML、转义、诊断和能力判断 |
 | 前端组件测试 | React Testing Library | 状态、快捷键、错误和设置交互 |
-| 浏览器 UI 测试 | 现有 CDP 测试或 Playwright | 窄/宽布局、编辑流程和视觉回归 |
+| 浏览器 UI 测试 | Playwright | 窄/宽布局、编辑流程和视觉回归 |
 | .NET 单元测试 | xUnit | 协议、配置、缓存、安全校验和文档模型 |
 | RenderHost 集成测试 | xUnit + 受控 TeX 环境 | 多引擎、宏包、超时、取消和输出检查 |
 | Word 冒烟测试 | PowerShell/C# + Word COM | 插入、更新、保存、重新打开和卸载后可见性 |
@@ -602,7 +604,7 @@ FormulaBridge/
 
 - 创建 VSTO x64 WordAddIn。
 - 完成功能区、每窗口任务窗格和 WebView2 本地资源加载。
-- 建立 Web Message 协议并接入当前编辑器原型。
+- 建立 Web Message 协议和 TypeScript 编辑器基础界面。
 - 验证安装后重启 Word 自动出现功能区。
 
 ### 阶段 B：RenderHost 基础
@@ -614,7 +616,7 @@ FormulaBridge/
 
 ### 阶段 C：双渲染与文档模型
 
-- 把现有 Core 迁移到 TypeScript。
+- 使用 TypeScript 实现 Core、AST 和诊断模型。
 - 实现 OMML/TeX 能力判断。
 - 完成内容控件、Custom XML、校验值和原子更新。
 - 实现选中公式重新编辑。
@@ -659,7 +661,7 @@ FormulaBridge/
 - 支持多个显式 TeX 环境，不修改系统 `PATH`。
 - WiX/MSI 是首发安装路线。
 
-暂缓到原型验证后决定：
+暂缓到技术验证后决定：
 
 - React 具体状态管理库。
 - RenderHost 是否长期常驻及准确空闲退出时间。

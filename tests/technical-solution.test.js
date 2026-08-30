@@ -8,7 +8,6 @@ var path = require("node:path");
 var projectRoot = path.resolve(__dirname, "..");
 var technicalSolutionPath = path.join(projectRoot, "docs", "technical-solution.md");
 var productDesignPath = path.join(projectRoot, "docs", "product-design.md");
-var currentArchitecturePath = path.join(projectRoot, "docs", "architecture.md");
 var readmePath = path.join(projectRoot, "README.md");
 
 function read(filePath) {
@@ -19,8 +18,9 @@ test("README links to the target FormulaBridge technical solution", function () 
   var readme = read(readmePath);
 
   assert.equal(fs.existsSync(technicalSolutionPath), true);
-  assert.match(readme, /\[docs\/technical-solution\.md\]\(docs\/technical-solution\.md\)/);
-  assert.match(readme, /current Office\.js MVP engineering baseline/);
+  assert.match(readme, /\[技术方案\]\(docs\/technical-solution\.md\)/);
+  assert.match(readme, /当前以以下两份文档作为唯一的产品与技术依据/);
+  assert.match(readme, /正式实现将从干净基线开始/);
 });
 
 test("technical solution fixes the approved primary technology stack", function () {
@@ -91,10 +91,13 @@ test("product design is aligned with the VSTO and WebView2 primary architecture"
   assert.match(productDesign, /正式版本不开放本地 HTTP 编译接口/);
 });
 
-test("current MVP architecture points readers to the approved target architecture", function () {
-  var currentArchitecture = read(currentArchitecturePath);
+test("authoritative documents reject historical prototype constraints", function () {
+  var technicalSolution = read(technicalSolutionPath);
+  var productDesign = read(productDesignPath);
 
-  assert.match(currentArchitecture, /this document describes the current Office\.js MVP/);
-  assert.match(currentArchitecture, /\[technical-solution\.md\]\(technical-solution\.md\)/);
-  assert.match(currentArchitecture, /approved Windows product uses a VSTO host with an embedded WebView2 editor/);
+  assert.match(technicalSolution, /旧原型和旧规划不构成实现约束/);
+  assert.match(technicalSolution, /从干净基线开始/);
+  assert.match(productDesign, /旧原型和旧规划不构成产品约束/);
+  assert.doesNotMatch(technicalSolution, /接入当前编辑器原型/);
+  assert.doesNotMatch(technicalSolution, /把现有 Core 迁移到 TypeScript/);
 });

@@ -1,61 +1,25 @@
 # FormulaBridge
 
-FormulaBridge is an independently developed LaTeX equation editor for Microsoft Word. It is not affiliated with, endorsed by, or derived from Elevator Lady Inc. or its Aurora product.
+FormulaBridge 是一款面向现代 Microsoft Word 的本地优先 LaTeX 公式编辑器。它是独立开发的新产品，与 Elevator Lady Inc. 或 Aurora 产品不存在隶属、授权、继承或认可关系。
 
-The approved product direction targets:
+## 权威设计基线
 
-- Windows 11 with Microsoft 365 Word and Word/Office 2024 as the primary supported environment;
-- editable native Word equations (OMML) for supported LaTeX;
-- a signed local rendering host for TeX Live, MiKTeX, and multiple selectable TeX environments;
-- embedded SVG with a PNG fallback for complex LaTeX that cannot be represented faithfully in OMML;
-- embedded, self-contained document output that remains readable without FormulaBridge;
-- inline, display, and numbered equations;
-- document-local LaTeX source metadata for re-editing.
+本仓库当前以以下两份文档作为唯一的产品与技术依据：
 
-The approved product experience and functional scope are defined in [docs/product-design.md](docs/product-design.md). The target Windows engineering stack and implementation approach are defined in [docs/technical-solution.md](docs/technical-solution.md).
+- [产品设计文档](docs/product-design.md)：产品方向、用户体验、主要功能、验收标准和发布路线。
+- [技术方案](docs/technical-solution.md)：目标技术栈、组件边界、渲染链路、安全、部署和测试策略。
 
-## Current status
+这两份文档以已经确认的产品讨论为基础，并取代仓库中曾经存在的早期需求、路线、Office.js 原型和技术假设。后续实现发生冲突时，以这两份文档为准。
 
-This repository contains the first runnable MVP:
+## 当前状态
 
-- a dependency-free LaTeX parser;
-- OMML generation for common formula structures;
-- a lightweight HTML preview renderer;
-- a desktop-style Office.js editor with menus, structure toolbar, source/preview panes, diagnostics, properties, and keyboard shortcuts;
-- a Word add-in manifest;
-- document-local formula metadata storage;
-- automated parser/writer tests and a real-browser UI smoke test.
+产品设计和技术方案已经确定，正式实现将从干净基线开始。仓库不保留早期 Office.js 演示代码、旧测试工具、旧资源或过时规划文档。
 
-Legacy Aurora object migration and the optional VSTO adapter are designed but not yet implemented.
-
-## Development
-
-Run the tests:
+## 文档验证
 
 ```powershell
+npm run check
 npm test
 ```
 
-With the local server running, execute the interactive UI smoke test (Chrome required):
-
-```powershell
-npm run test:ui
-```
-
-Start the local development server:
-
-```powershell
-npm run serve
-```
-
-The server uses HTTPS when `certs/localhost.crt` and `certs/localhost.key` exist. Otherwise it starts an HTTP preview server. Word sideloading requires a trusted HTTPS development certificate.
-
-On a Windows machine with Word installed, run the clean-machine document smoke test:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/word-smoke-test.ps1
-```
-
-The test builds a minimal DOCX containing FormulaBridge-generated OMML, opens it in Word without loading the add-in, and verifies that Word detects both the native equation and its content control.
-
-See [docs/product-design.md](docs/product-design.md) for the approved product direction, [docs/technical-solution.md](docs/technical-solution.md) for the target implementation, and [docs/requirements.md](docs/requirements.md) plus [docs/architecture.md](docs/architecture.md) for the current Office.js MVP engineering baseline.
+当前测试只验证两份权威文档及其关键决策的一致性。产品源码建立后，应按技术方案逐层增加 TypeScript、.NET、Word、TeX、UI 和安装测试。
