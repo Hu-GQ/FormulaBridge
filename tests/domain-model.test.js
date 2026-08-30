@@ -23,6 +23,8 @@ var sessionAdrPath = path.join(projectRoot, "docs", "adr", "0013-isolate-documen
 var atomicAdrPath = path.join(projectRoot, "docs", "adr", "0014-make-word-changes-atomic-and-undoable.md");
 var spikeAdrPath = path.join(projectRoot, "docs", "adr", "0015-prove-high-risk-integrations-before-feature-development.md");
 var corpusAdrPath = path.join(projectRoot, "docs", "adr", "0016-version-the-release-validation-corpus.md");
+var verticalAdrPath = path.join(projectRoot, "docs", "adr", "0017-build-a-vertical-product-loop-before-broad-features.md");
+var migrationAdrPath = path.join(projectRoot, "docs", "adr", "0018-isolate-legacy-migration-from-the-core-release.md");
 
 function read(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -43,6 +45,8 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /闭源桌面产品和签名安装包/);
   assert.match(context, /\*\*核心首发\*\*/);
   assert.match(context, /\*\*前置可行性门槛\*\*/);
+  assert.match(context, /\*\*纵向产品闭环\*\*/);
+  assert.match(context, /\*\*1\.1 编辑扩展\*\*/);
   assert.match(context, /\*\*LaTeX 源码\*\*/);
   assert.match(context, /权威语义来源/);
   assert.match(context, /\*\*分歧公式\*\*/);
@@ -50,12 +54,14 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /复制创建新身份/);
   assert.match(context, /\*\*公式标签\*\*/);
   assert.match(context, /\*\*标签冲突\*\*/);
+  assert.match(context, /\*\*身份冲突\*\*/);
   assert.match(context, /\*\*基本编号\*\*/);
   assert.match(context, /\*\*公式引用\*\*/);
   assert.match(context, /\*\*源码可移植复制\*\*/);
   assert.match(context, /\*\*可复制元数据载体\*\*/);
   assert.match(context, /\*\*文档内源码\*\*/);
   assert.match(context, /\*\*未映射公式\*\*/);
+  assert.match(context, /\*\*待更新公式\*\*/);
   assert.match(context, /\*\*受管理引用\*\*/);
   assert.match(context, /\*\*双格式表示\*\*/);
   assert.match(context, /\*\*已脱离管理公式\*\*/);
@@ -67,6 +73,8 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*渲染配置\*\*/);
   assert.match(context, /\*\*首发引擎\*\*/);
   assert.match(context, /\*\*TeX 支持窗口\*\*/);
+  assert.match(context, /\*\*用户批准工具链\*\*/);
+  assert.match(context, /\*\*无 TeX 模式\*\*/);
   assert.match(context, /\*\*文档环境要求\*\*/);
   assert.match(context, /\*\*公式覆盖配置\*\*/);
   assert.match(context, /\*\*兼容映射\*\*/);
@@ -80,6 +88,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*兼容元数据\*\*/);
   assert.match(context, /\*\*文档会话\*\*/);
   assert.match(context, /\*\*原子 Word 操作\*\*/);
+  assert.match(context, /\*\*两阶段批量更新\*\*/);
   assert.match(context, /\*\*未保存支持文档\*\*/);
   assert.match(context, /\*\*可控卸载\*\*/);
   assert.match(context, /\*\*明确编译操作\*\*/);
@@ -91,6 +100,10 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*一致性更新\*\*/);
   assert.match(context, /\*\*更新信任链\*\*/);
   assert.match(context, /\*\*发布验证语料\*\*/);
+  assert.match(context, /\*\*外部诊断与修复\*\*/);
+  assert.match(context, /\*\*先决条件降级状态\*\*/);
+  assert.match(context, /\*\*迁移助手\*\*/);
+  assert.match(context, /\*\*字体要求\*\*/);
 });
 
 test("accepted ADRs preserve formula authority and document trust decisions", function () {
@@ -110,6 +123,8 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   var atomicAdr = read(atomicAdrPath);
   var spikeAdr = read(spikeAdrPath);
   var corpusAdr = read(corpusAdrPath);
+  var verticalAdr = read(verticalAdrPath);
+  var migrationAdr = read(migrationAdrPath);
 
   assert.match(sourceAdr, /status: accepted/);
   assert.match(sourceAdr, /LaTeX source as the authoritative semantic state/);
@@ -126,17 +141,20 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(mappingAdr, /status: accepted/);
   assert.match(mappingAdr, /explicitly maps those requirements to a compatible local render profile/);
   assert.match(mappingAdr, /recompilation and replacement are blocked/);
+  assert.match(mappingAdr, /affected formulas retain their embedded representation and become stale/);
   assert.match(isolationAdr, /status: accepted/);
   assert.match(isolationAdr, /cannot read outside its explicitly allowed/);
   assert.match(isolationAdr, /cannot directly reference arbitrary document or user paths/);
   assert.match(isolationAdr, /restricted child-process identity, Job Object limits/);
   assert.match(isolationAdr, /a document cannot relax them/);
+  assert.match(isolationAdr, /document data can never select an executable/);
   assert.match(metadataAdr, /status: accepted/);
   assert.match(metadataAdr, /plain Custom XML inside the Word document package/);
   assert.match(distributionAdr, /status: accepted/);
   assert.match(distributionAdr, /closed-source Windows desktop product/);
   assert.match(distributionAdr, /commercial licensing system are not FormulaBridge 1\.0 release gates/);
   assert.match(distributionAdr, /embedded trust root verifies signed manifests and packages/);
+  assert.match(distributionAdr, /installs an external diagnostic and repair entry point/);
   assert.match(compatibilityAdr, /status: accepted/);
   assert.match(compatibilityAdr, /refuses to downgrade or overwrite the metadata/);
   assert.match(compatibilityAdr, /marks the formula as detached/);
@@ -153,11 +171,18 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(sessionAdr, /writes are serialized per document/);
   assert.match(atomicAdr, /status: accepted/);
   assert.match(atomicAdr, /commits visible content with its metadata atomically/);
-  assert.match(atomicAdr, /orphan metadata is removed only by an explicit repair action/);
+  assert.match(atomicAdr, /Duplicate UUIDs and orphan metadata are only changed by explicit, undoable repair/);
+  assert.match(atomicAdr, /Batch work renders and validates before any document write/);
   assert.match(spikeAdr, /status: accepted/);
   assert.match(spikeAdr, /does not begin broad feature implementation until executable spikes prove/);
   assert.match(spikeAdr, /TeX filesystem isolation/);
   assert.match(corpusAdr, /status: accepted/);
   assert.match(corpusAdr, /versioned, non-sensitive corpus/);
   assert.match(corpusAdr, /one-thousand-formula document/);
+  assert.match(verticalAdr, /status: accepted/);
+  assert.match(verticalAdr, /first delivers one production-shaped vertical loop/);
+  assert.match(verticalAdr, /chapter-aware numbering target 1\.1/);
+  assert.match(migrationAdr, /status: accepted/);
+  assert.match(migrationAdr, /explicit FormulaBridge 1\.x assistant/);
+  assert.match(migrationAdr, /always writes a new document plus an audit report/);
 });
