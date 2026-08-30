@@ -18,6 +18,9 @@ var distributionAdrPath = path.join(projectRoot, "docs", "adr", "0008-distribute
 var compatibilityAdrPath = path.join(projectRoot, "docs", "adr", "0009-version-document-metadata-and-fail-without-mutation.md");
 var fallbackAdrPath = path.join(projectRoot, "docs", "adr", "0010-embed-and-verify-svg-with-png-fallback.md");
 var draftAdrPath = path.join(projectRoot, "docs", "adr", "0011-encrypt-local-editor-drafts.md");
+var safeStateAdrPath = path.join(projectRoot, "docs", "adr", "0012-gate-word-mutations-on-a-safe-document-state.md");
+var sessionAdrPath = path.join(projectRoot, "docs", "adr", "0013-isolate-document-sessions-and-serialize-writes.md");
+var atomicAdrPath = path.join(projectRoot, "docs", "adr", "0014-make-word-changes-atomic-and-undoable.md");
 
 function read(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -32,6 +35,8 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /可以正式使用的核心版本/);
   assert.match(context, /\*\*支持文档\*\*/);
   assert.match(context, /`\.docx` 和 `\.docm`/);
+  assert.match(context, /\*\*可写文档状态\*\*/);
+  assert.match(context, /\*\*格式转换副本\*\*/);
   assert.match(context, /\*\*正式发行版\*\*/);
   assert.match(context, /闭源桌面产品和签名安装包/);
   assert.match(context, /\*\*核心首发\*\*/);
@@ -41,6 +46,7 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*公式身份\*\*/);
   assert.match(context, /复制创建新身份/);
   assert.match(context, /\*\*公式标签\*\*/);
+  assert.match(context, /\*\*标签冲突\*\*/);
   assert.match(context, /\*\*基本编号\*\*/);
   assert.match(context, /\*\*公式引用\*\*/);
   assert.match(context, /\*\*源码可移植复制\*\*/);
@@ -49,6 +55,9 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*受管理引用\*\*/);
   assert.match(context, /\*\*双格式表示\*\*/);
   assert.match(context, /\*\*已脱离管理公式\*\*/);
+  assert.match(context, /\*\*孤立元数据\*\*/);
+  assert.match(context, /\*\*目标样式适配\*\*/);
+  assert.match(context, /\*\*公式辅助说明\*\*/);
   assert.match(context, /\*\*自动渲染\*\*/);
   assert.match(context, /\*\*TeX 安装\*\*/);
   assert.match(context, /\*\*渲染配置\*\*/);
@@ -63,6 +72,9 @@ test("domain glossary defines the accepted FormulaBridge language", function () 
   assert.match(context, /\*\*公式片段\*\*/);
   assert.match(context, /\*\*受保护草稿\*\*/);
   assert.match(context, /\*\*兼容元数据\*\*/);
+  assert.match(context, /\*\*文档会话\*\*/);
+  assert.match(context, /\*\*原子 Word 操作\*\*/);
+  assert.match(context, /\*\*未保存支持文档\*\*/);
   assert.match(context, /\*\*可控卸载\*\*/);
   assert.match(context, /\*\*明确编译操作\*\*/);
   assert.match(context, /\*\*受控 TeX 根\*\*/);
@@ -82,6 +94,9 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   var compatibilityAdr = read(compatibilityAdrPath);
   var fallbackAdr = read(fallbackAdrPath);
   var draftAdr = read(draftAdrPath);
+  var safeStateAdr = read(safeStateAdrPath);
+  var sessionAdr = read(sessionAdrPath);
+  var atomicAdr = read(atomicAdrPath);
 
   assert.match(sourceAdr, /status: accepted/);
   assert.match(sourceAdr, /LaTeX source as the authoritative semantic state/);
@@ -114,4 +129,13 @@ test("accepted ADRs preserve formula authority and document trust decisions", fu
   assert.match(fallbackAdr, /ordinary copy, print, and PDF export is a release gate/);
   assert.match(draftAdr, /status: accepted/);
   assert.match(draftAdr, /time-limited drafts protected for the current Windows user/);
+  assert.match(safeStateAdr, /status: accepted/);
+  assert.match(safeStateAdr, /Track Changes, active real-time coauthoring/);
+  assert.match(safeStateAdr, /saved as a new supported-format copy/);
+  assert.match(sessionAdr, /status: accepted/);
+  assert.match(sessionAdr, /Each Word document window owns an independent/);
+  assert.match(sessionAdr, /writes are serialized per document/);
+  assert.match(atomicAdr, /status: accepted/);
+  assert.match(atomicAdr, /commits visible content with its metadata atomically/);
+  assert.match(atomicAdr, /orphan metadata is removed only by an explicit repair action/);
 });
