@@ -58,6 +58,10 @@ test("external diagnostics report registration, prerequisites, policy, and Ribbo
   assert.ok(diagnostics.includes("Software\\\\Microsoft\\\\Office\\\\Word\\\\Addins\\\\FormulaBridge.WordAddIn"));
   assert.match(diagnostics, /VSTO Runtime Setup/);
   assert.match(diagnostics, /Resiliency/);
+  assert.match(diagnostics, /DisabledItems/);
+  assert.match(diagnostics, /Encoding\.Unicode/);
+  assert.match(diagnostics, /disabledItemCount\s*>\s*0/);
+  assert.match(diagnostics, /opaque DisabledItems entr/);
   assert.match(diagnostics, /word-load-state\.json/);
   assert.match(diagnostics, /ribbonLoadedAt/);
   assert.match(program, /--output/);
@@ -75,6 +79,11 @@ test("the build pipeline signs and verifies every FormulaBridge deployment artif
   assert.match(build, /Microsoft\.VisualStudio\.Tools\.Office\.targets/);
   assert.match(build, /mage(?:\.exe)?[\s\S]+-Update/);
   assert.match(build, /mage(?:\.exe)?[\s\S]+-Verify/);
+  assert.match(build, /\$payloadApplicationManifest\s*=\s*Join-Path\s+\$payloadDirectory/);
+  assert.match(build, /\$payloadDeploymentManifest\s*=\s*Join-Path\s+\$payloadDirectory/);
+  assert.match(build, /\$manifestFilesDirectory\s*=\s*Join-Path\s+\$resolvedOutputDirectory/);
+  assert.match(build, /"-FromDirectory",\s*\$manifestFilesDirectory/);
+  assert.doesNotMatch(build, /"-FromDirectory",\s*\$addInPublishDirectory/);
   assert.match(build, /signtool(?:\.exe)?[\s\S]+sign/);
   assert.match(build, /signtool(?:\.exe)?[\s\S]+verify/);
   assert.match(build, /wix(?:\.exe)?[\s\S]+build/);
@@ -95,22 +104,42 @@ test("the smoke runner covers the installation lifecycle and emits the pinned VS
     assert.ok(smoke.includes('"' + assertionId + '"'), assertionId);
   });
   assert.match(smoke, /msiexec\.exe/);
+  assert.match(smoke, /Get-MsiProductState/);
+  assert.match(smoke, /Get-MsiRelatedProducts/);
+  assert.match(smoke, /"UpgradeCode"/);
+  assert.match(smoke, /Clean-install preflight/);
+  assert.match(smoke, /WindowsPrincipal/);
+  assert.match(smoke, /WindowsBuiltInRole\]::Administrator/);
   assert.match(smoke, /clean-install/);
   assert.match(smoke, /repeated-install/);
   assert.match(smoke, /repair/);
   assert.match(smoke, /uninstall/);
   assert.match(smoke, /Word\.Application/);
   assert.match(smoke, /COMAddIns/);
+  assert.match(smoke, /UIAutomationClient/);
+  assert.match(smoke, /ControlType\]::TabItem/);
   assert.match(smoke, /Get-FileHash/);
   assert.match(smoke, /RegistryHive\]::CurrentUser/);
   assert.match(smoke, /RegistryHive\]::LocalMachine/);
   assert.match(smoke, /signature-report/);
+  assert.match(smoke, /Build metadata signer does not match/);
+  assert.match(smoke, /Build metadata commit does not match/);
+  assert.match(smoke, /certificate\.thumbprint/);
   assert.match(smoke, /word-load-state/);
   assert.match(smoke, /diagnostics-report/);
   assert.match(smoke, /evidence\/vsto-installation\/result\/result\.json/);
   assert.match(smoke, /programFilesAfterUninstall/);
   assert.match(smoke, /Uninstall left program files/);
-  assert.doesNotMatch(smoke, /Verb\s+RunAs|PersonalFolder|MyDocuments/i);
+  assert.match(smoke, /Assert-MsiDocumentPrivacyContract/);
+  assert.match(smoke, /CustomAction/);
+  assert.match(smoke, /Archive-RawMsiLogs/);
+  assert.match(smoke, /returnValue3Count/);
+  assert.match(smoke, /MachineName/);
+  assert.match(smoke, /UserDomainName/);
+  assert.match(smoke, /Windows absolute path/);
+  assert.doesNotMatch(smoke, /Add-Content[^\n]+Get-Content[^\n]+rawMsiLog/);
+  assert.match(smoke, /finally\s*\{[\s\S]+Archive-RawMsiLogs[\s\S]+Remove-Item/s);
+  assert.doesNotMatch(smoke, /Verb\s+RunAs/i);
 });
 
 test("the VSTO spike documents repeatable build, smoke, trust, and evidence entry points", function () {
@@ -135,6 +164,7 @@ test("the VSTO spike documents repeatable build, smoke, trust, and evidence entr
 
 test("the Phase 0 execute entry point registers VSTO smoke and reports missing real artifacts as blocked", function (t) {
   var checkSet = JSON.parse(read("phase0/checks.json"));
+  var providerSource = read("tools/phase0-providers/vsto-installation.js");
   var definition = checkSet.checks.find(function (check) {
     return check.id === "vsto-installation";
   });
@@ -163,6 +193,7 @@ test("the Phase 0 execute entry point registers VSTO smoke and reports missing r
   });
 
   assert.equal(definition.provider, "tools/phase0-providers/vsto-installation.js");
+  assert.match(providerSource, /"-ExpectedCommit",\s*context\.commit/);
 
   var provider = require(path.join(projectRoot, definition.provider));
   var result = provider.run({

@@ -5,7 +5,7 @@
 ## 组成
 
 - `src/desktop/FormulaBridge.WordAddIn`：.NET Framework 4.8 / x64 VSTO Word 加载项，只提供最小 Ribbon。VSTO startup 与 Ribbon `onLoad` 回调把状态原子写入 `%LOCALAPPDATA%\FormulaBridge\Phase0\word-load-state.json`，不访问 Word 文档内容。
-- `src/desktop/FormulaBridge.Diagnostics`：只读外部诊断 EXE，检查 x64 Word、VSTO Runtime、HKCU 加载注册、`LoadBehavior=3`、本地 `|vstolocal` 清单、Office policy/Resiliency 状态，以及 startup/Ribbon 加载状态；它只报告问题，不强制启用加载项或绕过组织策略。
+- `src/desktop/FormulaBridge.Diagnostics`：只读外部诊断 EXE，检查 x64 Word、VSTO Runtime、HKCU 加载注册、`LoadBehavior=3`、本地 `|vstolocal` 清单、Office policy、`CrashingAddinList`/`DisabledItems`，以及 startup/Ribbon 加载状态；它只报告问题，不强制启用加载项或绕过组织策略。
 - `installer/FormulaBridge.Installer/Package.wxs`：WiX Toolset 4 per-user MSI，安装到当前用户的 Local AppData，只在 HKCU 注册 Word 加载项。卸载删除程序、加载注册和样机加载状态。
 - `tools/build-vsto-installation.ps1`：构建、签名、重新计算 VSTO 清单哈希、验证签名并生成 MSI。
 - `tools/test-vsto-installation.ps1`：在专用干净 Windows 账户中执行安装生命周期与故障诊断 smoke，并生成固定证据树。
@@ -59,13 +59,14 @@ npm run vsto:smoke -- `
 
 runner 按顺序执行 clean install、Word 重启自动加载、repeated install、再次自动加载、repair、再次自动加载、诊断成功路径、缺失/损坏加载状态故障注入、uninstall。它验证：
 
-- MSI 契约和实际注册均只属于当前用户，HKLM 中没有 FormulaBridge Word 加载注册；
+- clean install 前置条件使用未提升权限的 Windows token，且同一 MSI product、相同 `UpgradeCode` 的旧版本、安装目录及 HKCU/HKLM FormulaBridge 注册均不存在；
+- MSI 契约和实际注册均只属于当前用户，HKLM 中没有 FormulaBridge Word 加载注册；MSI 数据库没有自定义动作或用户 Documents 目录引用；
 - MSI、WordAddIn DLL、Diagnostics EXE 通过 Windows Authenticode 验证，VSTO 应用/部署清单通过 `mage -Verify`；
-- Word 的 COM Add-in 状态为 connected，且同一次新启动写出了 startup 与 Ribbon `onLoad` 状态；
+- Word 的 COM Add-in 状态为 connected，同一次新启动写出了 startup 与 Ribbon `onLoad` 状态，并且 UI Automation 找到屏幕上可见的 FormulaBridge Ribbon tab；
 - 外部诊断能识别正常状态、缺失状态和损坏状态，且运行前后 Office policy/Resiliency 指纹不变；
 - clean install、repeated install、repair 和 uninstall 均成功；卸载清除程序、加载注册和运行状态；
 - 从版本化语料复制到临时目录的合成 `.docx` 哨兵在整个生命周期中哈希不变，以证明卸载不扫描或修改用户文档；
-- MSI 原始日志只存在于受控临时目录，归档前会替换用户名、用户目录和 Local AppData 路径。
+- MSI 原始日志只存在于受控临时目录；无论成功或失败，归档证据仅保留步骤、大小、SHA-256、返回码和 `Return value 3` 计数的白名单摘要，不归档可能含路径或文件名的原文。
 
 也可以把该 runner 交给阶段 0 的统一执行入口。先设置实际构建产物；路径与信任级别缺失时，provider 会留下 `blocked` 的 result/log，不会伪造通过：
 
@@ -76,7 +77,7 @@ $env:FORMULABRIDGE_VSTO_TRUST_LEVEL = "test"
 npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase0-run\report
 ```
 
-`execution.json` 的格式、运行时清单和 corpus 引用见[阶段 0 证据基线](phase0-evidence.md)。如果工具不在 `PATH`，可选地设置 `FORMULABRIDGE_SIGNTOOL`、`FORMULABRIDGE_MAGE` 与 `FORMULABRIDGE_PWSH`。统一执行后仍只有 `vsto-installation` 由本 ticket 的 provider 运行，未配置 provider 的其他阶段 0 检查保持 `not-run`。
+`execution.json` 的格式、运行时清单和 corpus 引用见[阶段 0 证据基线](phase0-evidence.md)。provider 会把该输入的 commit 传给 smoke，并拒绝 build metadata 指向其他 commit 的产物。如果工具不在 `PATH`，可选地设置 `FORMULABRIDGE_SIGNTOOL`、`FORMULABRIDGE_MAGE` 与 `FORMULABRIDGE_PWSH`。统一执行后仍只有 `vsto-installation` 由本 ticket 的 provider 运行，未配置 provider 的其他阶段 0 检查保持 `not-run`。
 
 ## 证据
 

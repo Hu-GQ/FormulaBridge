@@ -11,6 +11,7 @@ param(
     [string]$TrustLevel,
 
     [string]$BuildMetadataPath,
+    [string]$ExpectedCommit,
     [string]$SignToolPath,
     [string]$MagePath,
 
@@ -151,7 +152,9 @@ function Protect-EvidenceText {
     $redactions = @(
         @{ Value = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile); Replacement = "%USERPROFILE%" },
         @{ Value = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData); Replacement = "%LOCALAPPDATA%" },
-        @{ Value = [Environment]::UserName; Replacement = "<user>" }
+        @{ Value = [Environment]::UserName; Replacement = "<user>" },
+        @{ Value = [Environment]::MachineName; Replacement = "<machine>" },
+        @{ Value = [Environment]::UserDomainName; Replacement = "<domain>" }
     )
     foreach ($redaction in $redactions) {
         if ($redaction.Value) {
@@ -162,6 +165,10 @@ function Protect-EvidenceText {
                 [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
+    $protected = [Text.RegularExpressions.Regex]::Replace(
+        $protected,
+        "(?i)(?:[A-Z]:\\|\\\\[^\\\s]+\\)[^\r\n;]*",
+        "<Windows absolute path>")
     return $protected
 }
 
@@ -170,6 +177,16 @@ function Write-SmokeLog {
 
     $line = "{0} {1}" -f [DateTime]::UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"), (Protect-EvidenceText $Message)
     Add-Content -LiteralPath $logPath -Value $line -Encoding utf8
+}
+
+function Get-SafeErrorType {
+    param([object]$ErrorRecord)
+
+    $name = $ErrorRecord.Exception.GetType().Name
+    if ($name -match "^[A-Za-z][A-Za-z0-9]*$") {
+        return $name
+    }
+    return "Error"
 }
 
 function Invoke-Native {
@@ -276,11 +293,166 @@ function Get-MsiProperty {
     }
 }
 
+function Get-MsiProductState {
+    param(
+        [string]$Path
+    )
+
+    $productCode = Get-MsiProperty $Path "ProductCode"
+    if (-not $productCode) {
+        throw "The MSI does not contain a ProductCode."
+    }
+
+    $windowsInstaller = New-Object -ComObject WindowsInstaller.Installer
+    try {
+        return [int]$windowsInstaller.GetType().InvokeMember(
+            "ProductState",
+            "GetProperty",
+            $null,
+            $windowsInstaller,
+            @($productCode))
+    }
+    finally {
+        if ($windowsInstaller) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($windowsInstaller)
+        }
+    }
+}
+
+function Get-MsiRelatedProducts {
+    param([string]$Path)
+
+    $upgradeCode = Get-MsiProperty $Path "UpgradeCode"
+    if (-not $upgradeCode) {
+        throw "The MSI does not contain an UpgradeCode."
+    }
+
+    $windowsInstaller = New-Object -ComObject WindowsInstaller.Installer
+    $relatedProducts = $null
+    try {
+        $relatedProducts = $windowsInstaller.GetType().InvokeMember(
+            "RelatedProducts",
+            "GetProperty",
+            $null,
+            $windowsInstaller,
+            @($upgradeCode))
+        $productCodes = @()
+        foreach ($productCode in $relatedProducts) {
+            $productCodes += [string]$productCode
+        }
+        return $productCodes
+    }
+    finally {
+        if ($relatedProducts -and [Runtime.InteropServices.Marshal]::IsComObject($relatedProducts)) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($relatedProducts)
+        }
+        if ($windowsInstaller) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($windowsInstaller)
+        }
+    }
+}
+
+function Get-MsiColumnValues {
+    param(
+        [string]$Path,
+        [ValidatePattern("^[A-Za-z_][A-Za-z0-9_]*$")]
+        [string]$Table,
+        [ValidatePattern("^[A-Za-z_][A-Za-z0-9_]*$")]
+        [string]$Column
+    )
+
+    $windowsInstaller = New-Object -ComObject WindowsInstaller.Installer
+    $view = $null
+    $database = $null
+    try {
+        $database = $windowsInstaller.GetType().InvokeMember(
+            "OpenDatabase",
+            "InvokeMethod",
+            $null,
+            $windowsInstaller,
+            @($Path, 0))
+        $query = "SELECT ``$Column`` FROM ``$Table``"
+        $view = $database.GetType().InvokeMember("OpenView", "InvokeMethod", $null, $database, @($query))
+        [void]$view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null)
+        $values = @()
+        while ($true) {
+            $record = $view.GetType().InvokeMember("Fetch", "InvokeMethod", $null, $view, $null)
+            if (-not $record) {
+                break
+            }
+            try {
+                $values += [string]$record.GetType().InvokeMember("StringData", "GetProperty", $null, $record, @(1))
+            }
+            finally {
+                [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record)
+            }
+        }
+        return $values
+    }
+    finally {
+        if ($view) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
+        }
+        if ($database) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($database)
+        }
+        if ($windowsInstaller) {
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($windowsInstaller)
+        }
+    }
+}
+
+function Assert-MsiDocumentPrivacyContract {
+    param([string]$Path)
+
+    $tableNames = @(Get-MsiColumnValues $Path "_Tables" "Name")
+    $customActions = @()
+    if ($tableNames -contains "CustomAction") {
+        $customActions = @(Get-MsiColumnValues $Path "CustomAction" "Action")
+    }
+    $directoryIds = @(Get-MsiColumnValues $Path "Directory" "Directory")
+    $documentDirectoryIds = @($directoryIds | Where-Object { $_ -match "Personal|MyDocuments|DocumentsFolder" })
+
+    if ($customActions.Count -gt 0 -or $documentDirectoryIds.Count -gt 0) {
+        throw "The MSI contains a custom action or user-document directory reference."
+    }
+
+    Write-SmokeLog "MSI privacy contract passed: no custom actions and no user-document directory references."
+}
+
+function Archive-RawMsiLogs {
+    foreach ($rawMsiLog in $rawMsiLogs) {
+        if (-not (Test-Path -LiteralPath $rawMsiLog)) {
+            continue
+        }
+
+        $content = Get-Content -LiteralPath $rawMsiLog -Raw
+        $returnCodes = @(
+            [Text.RegularExpressions.Regex]::Matches($content, "MainEngineThread is returning (?<code>[0-9]+)") |
+                ForEach-Object { $_.Groups["code"].Value } |
+                Sort-Object -Unique
+        )
+        $returnValue3Count = [Text.RegularExpressions.Regex]::Matches($content, "Return value 3").Count
+        $safeStep = [Text.RegularExpressions.Regex]::Replace(
+            [IO.Path]::GetFileNameWithoutExtension($rawMsiLog),
+            "[^A-Za-z0-9.-]",
+            "_")
+        Write-SmokeLog (
+            "MSI log summary: step={0}; sizeBytes={1}; sha256={2}; returnCodes={3}; returnValue3Count={4}" -f
+                $safeStep,
+                (Get-Item -LiteralPath $rawMsiLog).Length,
+                (Get-FileHash -LiteralPath $rawMsiLog -Algorithm SHA256).Hash.ToLowerInvariant(),
+                ($returnCodes -join ","),
+                $returnValue3Count)
+    }
+}
+
 function Get-RegistryPolicyFingerprint {
     $locations = @(
         @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; View = [Microsoft.Win32.RegistryView]::Registry64; Path = "Software\Policies\Microsoft\Office\16.0\Word\Resiliency\AddinList" },
         @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; View = [Microsoft.Win32.RegistryView]::Registry64; Path = "SOFTWARE\Policies\Microsoft\Office\16.0\Word\Resiliency\AddinList" },
-        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; View = [Microsoft.Win32.RegistryView]::Registry64; Path = "Software\Microsoft\Office\16.0\Word\Resiliency\CrashingAddinList" }
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; View = [Microsoft.Win32.RegistryView]::Registry64; Path = "Software\Microsoft\Office\16.0\Word\Resiliency\CrashingAddinList" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; View = [Microsoft.Win32.RegistryView]::Registry64; Path = "Software\Microsoft\Office\16.0\Word\Resiliency\DisabledItems" }
     )
     $snapshot = @()
 
@@ -291,11 +463,18 @@ function Get-RegistryPolicyFingerprint {
             if ($key) {
                 try {
                     foreach ($name in ($key.GetValueNames() | Sort-Object)) {
+                        $registryValue = $key.GetValue($name)
+                        $fingerprintValue = if ($registryValue -is [byte[]]) {
+                            ([BitConverter]::ToString($registryValue)).Replace("-", "")
+                        }
+                        else {
+                            [string]$registryValue
+                        }
                         $snapshot += [ordered]@{
                             hive = [string]$location.Hive
                             path = $location.Path
                             name = $name
-                            value = [string]$key.GetValue($name)
+                            value = $fingerprintValue
                         }
                     }
                 }
@@ -355,6 +534,26 @@ function Invoke-WordLoadProbe {
             throw "The fresh FormulaBridge Ribbon onLoad state was not observed."
         }
 
+        Add-Type -AssemblyName UIAutomationClient
+        $wordElement = [Windows.Automation.AutomationElement]::FromHandle([IntPtr]$word.Hwnd)
+        $nameCondition = New-Object Windows.Automation.PropertyCondition -ArgumentList @(
+            [Windows.Automation.AutomationElement]::NameProperty,
+            "FormulaBridge")
+        $namedElements = $wordElement.FindAll([Windows.Automation.TreeScope]::Descendants, $nameCondition)
+        $ribbonTabVisible = $false
+        for ($index = 0; $index -lt $namedElements.Count; $index += 1) {
+            $element = $namedElements.Item($index)
+            if ($element.Current.ControlType -eq [Windows.Automation.ControlType]::TabItem -and
+                -not $element.Current.IsOffscreen) {
+                $ribbonTabVisible = $true
+                break
+            }
+        }
+        if (-not $ribbonTabVisible) {
+            throw "UI Automation did not find a visible FormulaBridge Ribbon tab."
+        }
+        $state | Add-Member -NotePropertyName "ribbonUiVisible" -NotePropertyValue $true -Force
+
         Write-SmokeLog ("Word automatic-load probe passed after " + $Step)
         return $state
     }
@@ -395,11 +594,26 @@ function Invoke-SignatureVerification {
         [string]$MetadataPath
     )
 
+    $metadata = Get-Content -LiteralPath $MetadataPath -Raw | ConvertFrom-Json
+    if ($metadata.trustLevel -ne $TrustLevel) {
+        throw "Build metadata trustLevel does not match the smoke run."
+    }
+    if ($ExpectedCommit -and $metadata.commit -ne $ExpectedCommit) {
+        throw "Build metadata commit does not match the Phase 0 execution commit."
+    }
+    if ($TrustLevel -eq "production" -and (-not $metadata.certificate.chainTrusted -or -not $metadata.certificate.timestamped)) {
+        throw "Production evidence requires a trusted and timestamped signing certificate."
+    }
+    $expectedSignerThumbprint = ([string]$metadata.certificate.thumbprint).Replace(" ", "").ToLowerInvariant()
+    if ($expectedSignerThumbprint -notmatch "^[0-9a-f]{40}$") {
+        throw "Build metadata does not contain a valid signing certificate thumbprint."
+    }
+
     $artifacts = @(
-        @{ name = "installer"; path = $resolvedInstallerPath; kind = "authenticode" },
-        @{ name = "word-addin"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.dll"); kind = "authenticode" },
-        @{ name = "diagnostics"; path = (Join-Path $InstalledDirectory "FormulaBridge.Diagnostics.exe"); kind = "authenticode" },
-        @{ name = "office-tools-utilities"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"); kind = "authenticode" },
+        @{ name = "installer"; path = $resolvedInstallerPath; kind = "authenticode"; expectedSigner = $true },
+        @{ name = "word-addin"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.dll"); kind = "authenticode"; expectedSigner = $true },
+        @{ name = "diagnostics"; path = (Join-Path $InstalledDirectory "FormulaBridge.Diagnostics.exe"); kind = "authenticode"; expectedSigner = $true },
+        @{ name = "office-tools-utilities"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"); kind = "authenticode"; expectedSigner = $false },
         @{ name = "application-manifest"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.dll.manifest"); kind = "manifest" },
         @{ name = "deployment-manifest"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.vsto"); kind = "manifest" }
     )
@@ -415,12 +629,19 @@ function Invoke-SignatureVerification {
             if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
                 throw ("Windows signature verification failed for " + $artifact.name)
             }
+            $signerThumbprint = $signature.SignerCertificate.Thumbprint.ToLowerInvariant()
+            if ($artifact.expectedSigner -and $signerThumbprint -ne $expectedSignerThumbprint) {
+                throw ("Build metadata signer does not match " + $artifact.name + ".")
+            }
+            if ($TrustLevel -eq "production" -and $artifact.expectedSigner -and -not $signature.TimeStamperCertificate) {
+                throw ("Production signature is not timestamped for " + $artifact.name + ".")
+            }
             $results += [ordered]@{
                 artifact = $artifact.name
                 verification = "windows-authenticode"
                 status = "passed"
                 sha256 = (Get-FileHash -LiteralPath $artifact.path -Algorithm SHA256).Hash.ToLowerInvariant()
-                signerThumbprint = $signature.SignerCertificate.Thumbprint.ToLowerInvariant()
+                signerThumbprint = $signerThumbprint
             }
         }
         else {
@@ -432,14 +653,6 @@ function Invoke-SignatureVerification {
                 sha256 = (Get-FileHash -LiteralPath $artifact.path -Algorithm SHA256).Hash.ToLowerInvariant()
             }
         }
-    }
-
-    $metadata = Get-Content -LiteralPath $MetadataPath -Raw | ConvertFrom-Json
-    if ($metadata.trustLevel -ne $TrustLevel) {
-        throw "Build metadata trustLevel does not match the smoke run."
-    }
-    if ($TrustLevel -eq "production" -and (-not $metadata.certificate.chainTrusted -or -not $metadata.certificate.timestamped)) {
-        throw "Production evidence requires a trusted and timestamped signing certificate."
     }
 
     [ordered]@{
@@ -456,7 +669,9 @@ function Test-EvidencePrivacy {
     $sensitiveValues = @(
         [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile),
         [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),
-        [Environment]::UserName
+        [Environment]::UserName,
+        [Environment]::MachineName,
+        [Environment]::UserDomainName
     ) | Where-Object { $_ }
 
     foreach ($textPath in $TextPaths) {
@@ -465,6 +680,11 @@ function Test-EvidencePrivacy {
             if ($content.IndexOf($sensitiveValue, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
                 return $false
             }
+        }
+        if ([Text.RegularExpressions.Regex]::IsMatch(
+            $content,
+            "(?i)(?:[A-Z]:\\|\\\\[^\\\s]+\\)[^\r\n;]*")) {
+            return $false
         }
     }
     return $true
@@ -522,15 +742,31 @@ $mage = $null
 $sentinelPath = Join-Path $workDirectory "synthetic-document-sentinel.docx"
 $sentinelHash = $null
 $rawMsiLogs = @()
-$runFailure = $null
 $installed = $false
+$programFileNames = @(
+    "FormulaBridge.WordAddIn.dll",
+    "FormulaBridge.WordAddIn.dll.manifest",
+    "FormulaBridge.WordAddIn.vsto",
+    "Microsoft.Office.Tools.Common.v4.0.Utilities.dll",
+    "FormulaBridge.Diagnostics.exe"
+)
 
 try {
+    $script:currentAssertionId = "current-user-installation"
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Set-Assertion "current-user-installation" "blocked" "Clean-install preflight requires a non-elevated Windows token."
+        throw "Clean-install preflight rejected an elevated Windows token."
+    }
+
+    $script:currentAssertionId = "installation-lifecycle-smoke"
     if (Get-Process -Name WINWORD -ErrorAction SilentlyContinue) {
         Set-Assertion "installation-lifecycle-smoke" "blocked" "Word must be closed before the smoke run."
         throw "Word is already running."
     }
 
+    $script:currentAssertionId = "current-user-installation"
     $resolvedInstallerPath = (Resolve-Path -LiteralPath $InstallerPath).Path
     if (-not $BuildMetadataPath) {
         $BuildMetadataPath = Join-Path (Split-Path -Parent $resolvedInstallerPath) "build-metadata.json"
@@ -538,12 +774,28 @@ try {
     $resolvedBuildMetadataPath = (Resolve-Path -LiteralPath $BuildMetadataPath).Path
     $signTool = Resolve-CommandPath $SignToolPath "signtool.exe" "Windows SDK signtool.exe"
     $mage = Resolve-CommandPath $MagePath "mage.exe" ".NET Framework mage.exe"
+
+    $existingUserRegistration = Test-RegistryKey ([Microsoft.Win32.RegistryHive]::CurrentUser) ([Microsoft.Win32.RegistryView]::Registry64) $addInRegistryPath
+    $existingMachineRegistration = Test-RegistryKey ([Microsoft.Win32.RegistryHive]::LocalMachine) ([Microsoft.Win32.RegistryView]::Registry64) $addInRegistryPath
+    $existingInstallContent = (Test-Path -LiteralPath $installDirectory) -and
+        [bool](Get-ChildItem -LiteralPath $installDirectory -Force | Select-Object -First 1)
+    $productStateBeforeInstall = Get-MsiProductState $resolvedInstallerPath
+    $relatedProductsBeforeInstall = @(Get-MsiRelatedProducts $resolvedInstallerPath)
+    if ($existingUserRegistration -or
+        $existingMachineRegistration -or
+        $existingInstallContent -or
+        $productStateBeforeInstall -ne -1 -or
+        $relatedProductsBeforeInstall.Count -gt 0) {
+        Set-Assertion "current-user-installation" "blocked" "Clean-install preflight found an existing product, registration, or installation payload."
+        throw "Clean-install preflight requires a pristine FormulaBridge Phase 0 installation state."
+    }
+    Assert-MsiDocumentPrivacyContract $resolvedInstallerPath
+
     Copy-Item -LiteralPath $resolvedInstallerPath -Destination $installerEvidencePath
     Copy-Item -LiteralPath (Join-Path $projectRoot "corpus\phase0\word\minimal-document.docx") -Destination $sentinelPath
     $sentinelHash = (Get-FileHash -LiteralPath $sentinelPath -Algorithm SHA256).Hash
-    Write-SmokeLog "Smoke preflight passed."
+    Write-SmokeLog "Clean-install preflight passed with a non-elevated token and no existing FormulaBridge installation state."
 
-    $script:currentAssertionId = "current-user-installation"
     $allUsers = Get-MsiProperty $resolvedInstallerPath "ALLUSERS"
     $installPerUser = Get-MsiProperty $resolvedInstallerPath "MSIINSTALLPERUSER"
     if (($allUsers -and $allUsers -notin @("2", "")) -or ($installPerUser -and $installPerUser -ne "1")) {
@@ -582,7 +834,7 @@ try {
     $rawMsiLogs += $repairLog
     Invoke-Msi "repair" @("/fa", $resolvedInstallerPath) $repairLog
     $latestLoadState = Invoke-WordLoadProbe "repair"
-    Get-Content -LiteralPath $statePath -Raw | Set-Content -LiteralPath $wordLoadEvidencePath -Encoding utf8
+    $latestLoadState | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $wordLoadEvidencePath -Encoding utf8
     Set-Assertion "installation-lifecycle-smoke" "passed"
 
     $installedDiagnostics = Join-Path $installDirectory "FormulaBridge.Diagnostics.exe"
@@ -646,13 +898,9 @@ try {
 
     $userRegisteredAfterUninstall = Test-RegistryKey ([Microsoft.Win32.RegistryHive]::CurrentUser) ([Microsoft.Win32.RegistryView]::Registry64) $addInRegistryPath
     $sentinelHashAfter = (Get-FileHash -LiteralPath $sentinelPath -Algorithm SHA256).Hash
-    $programFilesAfterUninstall = @(
-        "FormulaBridge.WordAddIn.dll",
-        "FormulaBridge.WordAddIn.dll.manifest",
-        "FormulaBridge.WordAddIn.vsto",
-        "Microsoft.Office.Tools.Common.v4.0.Utilities.dll",
-        "FormulaBridge.Diagnostics.exe"
-    ) | ForEach-Object { Join-Path $installDirectory $_ } | Where-Object { Test-Path -LiteralPath $_ }
+    $programFilesAfterUninstall = $programFileNames |
+        ForEach-Object { Join-Path $installDirectory $_ } |
+        Where-Object { Test-Path -LiteralPath $_ }
     if ($programFilesAfterUninstall.Count -gt 0) {
         Set-Assertion "non-destructive-uninstall" "failed" "Uninstall left program files in the per-user installation directory."
         throw "Uninstall left program files."
@@ -664,12 +912,6 @@ try {
     Set-Assertion "non-destructive-uninstall" "passed"
 
     $script:currentAssertionId = "diagnostics-privacy"
-    foreach ($rawMsiLog in $rawMsiLogs) {
-        if (Test-Path -LiteralPath $rawMsiLog) {
-            Add-Content -LiteralPath $logPath -Value (Protect-EvidenceText (Get-Content -LiteralPath $rawMsiLog -Raw)) -Encoding utf8
-        }
-    }
-
     $privacyPaths = @($logPath, $signatureEvidencePath, $wordLoadEvidencePath, $diagnosticsEvidencePath)
     if (-not (Test-EvidencePrivacy $privacyPaths)) {
         Set-Assertion "diagnostics-privacy" "failed" "Text evidence contains a user name or user profile path."
@@ -678,22 +920,30 @@ try {
     Set-Assertion "diagnostics-privacy" "passed"
 }
 catch {
-    $runFailure = $_.Exception.Message
     $currentAssertion = $script:assertionById[$script:currentAssertionId]
     if ($currentAssertion.status -notin @("failed", "blocked")) {
         Set-Assertion $script:currentAssertionId "failed" "The assertion failed; see the redacted smoke log."
     }
-    Write-SmokeLog ("Smoke run did not pass: " + $runFailure)
+    Write-SmokeLog ("Smoke run did not pass during assertion " + $script:currentAssertionId + "; errorType=" + (Get-SafeErrorType $_))
 }
 finally {
     if ($installed -and $resolvedInstallerPath) {
         try {
             $cleanupLog = Join-Path $workDirectory "cleanup-uninstall.raw.log"
+            $rawMsiLogs += $cleanupLog
             Invoke-Msi "cleanup-uninstall" @("/x", $resolvedInstallerPath) $cleanupLog
         }
         catch {
-            Write-SmokeLog ("Cleanup uninstall failed: " + $_.Exception.Message)
+            Write-SmokeLog ("Cleanup uninstall failed; errorType=" + (Get-SafeErrorType $_))
         }
+    }
+
+    try {
+        Archive-RawMsiLogs
+    }
+    catch {
+        Set-Assertion "diagnostics-privacy" "failed" "MSI log summaries could not be archived safely."
+        Write-SmokeLog ("MSI log summary failed; errorType=" + (Get-SafeErrorType $_))
     }
 
     Write-ResultEvidence

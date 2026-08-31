@@ -93,7 +93,9 @@ function run(context) {
     "-EvidenceDirectory",
     context.workspace,
     "-TrustLevel",
-    trustLevel
+    trustLevel,
+    "-ExpectedCommit",
+    context.commit
   ];
 
   if (process.env.FORMULABRIDGE_SIGNTOOL) {

@@ -68,6 +68,7 @@ namespace FormulaBridge.Diagnostics
         private const string VstoRuntimePath = "SOFTWARE\\Microsoft\\VSTO Runtime Setup\\v4R";
         private const string VstoRuntimeWowPath = "SOFTWARE\\WOW6432Node\\Microsoft\\VSTO Runtime Setup\\v4R";
         private const string UserResiliencyPath = "Software\\Microsoft\\Office\\16.0\\Word\\Resiliency";
+        private const string UserDisabledItemsPath = UserResiliencyPath + "\\DisabledItems";
         private const string UserPolicyPath = "Software\\Policies\\Microsoft\\Office\\16.0\\Word\\Resiliency\\AddinList";
         private const string MachinePolicyPath = "SOFTWARE\\Policies\\Microsoft\\Office\\16.0\\Word\\Resiliency\\AddinList";
 
@@ -208,15 +209,27 @@ namespace FormulaBridge.Diagnostics
             bool disabledByPolicy = string.Equals(userPolicy, "0", StringComparison.Ordinal) ||
                 string.Equals(machinePolicy, "0", StringComparison.Ordinal);
             bool crashListed = RegistryValueExists(RegistryHive.CurrentUser, RegistryView.Registry64, UserResiliencyPath + "\\CrashingAddinList", AddInId);
+            int disabledItemCount;
+            bool disabledItemMarker = RegistryBinaryValuesContain(
+                RegistryHive.CurrentUser,
+                RegistryView.Registry64,
+                UserDisabledItemsPath,
+                AddInId,
+                out disabledItemCount);
+            bool disabledItemsPresent = disabledItemCount > 0;
 
             checks.Add(new DiagnosticCheck(
                 "resiliency-and-policy",
-                !disabledByPolicy && !crashListed,
+                !disabledByPolicy && !crashListed && !disabledItemsPresent,
                 disabledByPolicy
                     ? "Office policy disables the add-in; diagnostics will not bypass policy."
                     : crashListed
                         ? "Word lists the add-in as crashing; diagnostics will not force-enable it."
-                        : "No explicit blocking policy or crashing-add-in entry was detected."));
+                        : disabledItemMarker
+                            ? "Word DisabledItems contains FormulaBridge; diagnostics will not force-enable it."
+                            : disabledItemsPresent
+                                ? "Word contains opaque DisabledItems entries; diagnostics cannot safely exclude FormulaBridge and will not force-enable it."
+                                : "No explicit blocking policy, crashing-add-in entry, or DisabledItems entry was detected."));
         }
 
         private static void CheckLoadState(List<DiagnosticCheck> checks)
@@ -281,6 +294,44 @@ namespace FormulaBridge.Diagnostics
             using (RegistryKey key = baseKey.OpenSubKey(path, false))
             {
                 return key != null && key.GetValue(name) != null;
+            }
+        }
+
+        private static bool RegistryBinaryValuesContain(
+            RegistryHive hive,
+            RegistryView view,
+            string path,
+            string marker,
+            out int valueCount)
+        {
+            valueCount = 0;
+            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view))
+            using (RegistryKey key = baseKey.OpenSubKey(path, false))
+            {
+                if (key == null)
+                {
+                    return false;
+                }
+
+                foreach (string name in key.GetValueNames())
+                {
+                    valueCount += 1;
+                    byte[] value = key.GetValue(name) as byte[];
+                    if (value == null)
+                    {
+                        continue;
+                    }
+
+                    string unicode = Encoding.Unicode.GetString(value);
+                    string ascii = Encoding.ASCII.GetString(value);
+                    if (unicode.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ascii.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 

@@ -200,10 +200,12 @@ else {
 
 $publishDirectory = Join-Path $resolvedOutputDirectory "publish"
 $payloadDirectory = Join-Path $resolvedOutputDirectory "payload"
+$manifestFilesDirectory = Join-Path $resolvedOutputDirectory "manifest-files"
 $diagnosticsDirectory = Join-Path $resolvedOutputDirectory "diagnostics"
 $installerPath = Join-Path $resolvedOutputDirectory "FormulaBridge.Phase0.x64.msi"
 New-Item -ItemType Directory -Path $publishDirectory | Out-Null
 New-Item -ItemType Directory -Path $payloadDirectory | Out-Null
+New-Item -ItemType Directory -Path $manifestFilesDirectory | Out-Null
 New-Item -ItemType Directory -Path $diagnosticsDirectory | Out-Null
 
 Invoke-Checked $msbuild @(
@@ -228,27 +230,39 @@ Invoke-Checked $msbuild @(
     "/verbosity:minimal"
 ) "Publish FormulaBridge.WordAddIn"
 
-$applicationManifest = Get-ChildItem -LiteralPath $publishDirectory -Filter "FormulaBridge.WordAddIn.dll.manifest" -File -Recurse | Select-Object -First 1
-$deploymentManifest = Get-ChildItem -LiteralPath $publishDirectory -Filter "FormulaBridge.WordAddIn.vsto" -File -Recurse | Select-Object -First 1
+$publishedApplicationManifest = Get-ChildItem -LiteralPath $publishDirectory -Filter "FormulaBridge.WordAddIn.dll.manifest" -File -Recurse | Select-Object -First 1
+$publishedDeploymentManifest = Get-ChildItem -LiteralPath $publishDirectory -Filter "FormulaBridge.WordAddIn.vsto" -File -Recurse | Select-Object -First 1
 $diagnosticsExecutable = Join-Path $diagnosticsDirectory "FormulaBridge.Diagnostics.exe"
 
-if (-not $applicationManifest -or -not $deploymentManifest) {
+if (-not $publishedApplicationManifest -or -not $publishedDeploymentManifest) {
     throw "The VSTO publish did not produce both application and deployment manifests."
 }
-$addInPublishDirectory = $applicationManifest.Directory.FullName
-$wordAddInAssembly = Join-Path $addInPublishDirectory "FormulaBridge.WordAddIn.dll"
-if (-not (Test-Path -LiteralPath $wordAddInAssembly) -or -not (Test-Path -LiteralPath $diagnosticsExecutable)) {
+$addInPublishDirectory = $publishedApplicationManifest.Directory.FullName
+$publishedWordAddInAssembly = Join-Path $addInPublishDirectory "FormulaBridge.WordAddIn.dll"
+$publishedUtilitiesAssembly = Join-Path $addInPublishDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+if (-not (Test-Path -LiteralPath $publishedWordAddInAssembly) -or
+    -not (Test-Path -LiteralPath $publishedUtilitiesAssembly) -or
+    -not (Test-Path -LiteralPath $diagnosticsExecutable)) {
     throw "The VSTO or diagnostics binary is missing after build."
 }
 
-Invoke-SignToolSign $signtool $signing.Thumbprint $TimestampUrl $wordAddInAssembly
+$manifestWordAddInAssembly = Join-Path $manifestFilesDirectory "FormulaBridge.WordAddIn.dll"
+$manifestUtilitiesAssembly = Join-Path $manifestFilesDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+$payloadApplicationManifest = Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll.manifest"
+$payloadDeploymentManifest = Join-Path $payloadDirectory "FormulaBridge.WordAddIn.vsto"
+Copy-Item -LiteralPath $publishedWordAddInAssembly -Destination $manifestWordAddInAssembly
+Copy-Item -LiteralPath $publishedUtilitiesAssembly -Destination $manifestUtilitiesAssembly
+Copy-Item -LiteralPath $publishedApplicationManifest.FullName -Destination $payloadApplicationManifest
+Copy-Item -LiteralPath $publishedDeploymentManifest.FullName -Destination $payloadDeploymentManifest
+
+Invoke-SignToolSign $signtool $signing.Thumbprint $TimestampUrl $manifestWordAddInAssembly
 Invoke-SignToolSign $signtool $signing.Thumbprint $TimestampUrl $diagnosticsExecutable
 
 $applicationManifestArguments = @(
     "-Update",
-    $applicationManifest.FullName,
+    $payloadApplicationManifest,
     "-FromDirectory",
-    $addInPublishDirectory,
+    $manifestFilesDirectory,
     "-CertHash",
     $signing.Thumbprint
 )
@@ -259,9 +273,9 @@ Invoke-Checked $mage $applicationManifestArguments "mage -Update application man
 
 $deploymentManifestArguments = @(
     "-Update",
-    $deploymentManifest.FullName,
+    $payloadDeploymentManifest,
     "-AppManifest",
-    $applicationManifest.FullName,
+    $payloadApplicationManifest,
     "-CertHash",
     $signing.Thumbprint
 )
@@ -270,17 +284,11 @@ if ($TimestampUrl) {
 }
 Invoke-Checked $mage $deploymentManifestArguments "mage -Update deployment manifest"
 
-Invoke-Checked $mage @("-Verify", $applicationManifest.FullName) "mage -Verify application manifest"
-Invoke-Checked $mage @("-Verify", $deploymentManifest.FullName) "mage -Verify deployment manifest"
+Invoke-Checked $mage @("-Verify", $payloadApplicationManifest) "mage -Verify application manifest"
+Invoke-Checked $mage @("-Verify", $payloadDeploymentManifest) "mage -Verify deployment manifest"
 
-$utilitiesAssembly = Join-Path $addInPublishDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
-if (-not (Test-Path -LiteralPath $utilitiesAssembly)) {
-    throw "The VSTO publish did not include Microsoft.Office.Tools.Common.v4.0.Utilities.dll."
-}
-Copy-Item -LiteralPath $wordAddInAssembly -Destination (Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll")
-Copy-Item -LiteralPath $applicationManifest.FullName -Destination (Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll.manifest")
-Copy-Item -LiteralPath $deploymentManifest.FullName -Destination (Join-Path $payloadDirectory "FormulaBridge.WordAddIn.vsto")
-Copy-Item -LiteralPath $utilitiesAssembly -Destination (Join-Path $payloadDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll")
+Copy-Item -LiteralPath $manifestWordAddInAssembly -Destination (Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll")
+Copy-Item -LiteralPath $manifestUtilitiesAssembly -Destination (Join-Path $payloadDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll")
 
 Invoke-Checked $wix @(
     "build",
@@ -296,10 +304,10 @@ Invoke-Checked $wix @(
 ) "wix build per-user installer"
 
 Invoke-SignToolSign $signtool $signing.Thumbprint $TimestampUrl $installerPath
-Invoke-SignToolVerify $signtool $wordAddInAssembly
+Invoke-SignToolVerify $signtool $manifestWordAddInAssembly
 Invoke-SignToolVerify $signtool $diagnosticsExecutable
 Invoke-SignToolVerify $signtool $installerPath
-Invoke-SignToolVerify $signtool $utilitiesAssembly
+Invoke-SignToolVerify $signtool $manifestUtilitiesAssembly
 
 $commit = (& git -C $projectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) {
