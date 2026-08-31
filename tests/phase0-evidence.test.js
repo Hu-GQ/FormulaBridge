@@ -10,8 +10,35 @@ var childProcess = require("node:child_process");
 
 var projectRoot = path.resolve(__dirname, "..");
 var cliPath = path.join(projectRoot, "tools", "phase0-evidence.js");
+var phase0Evidence = require(cliPath);
 var checkSetPath = path.join(projectRoot, "phase0", "checks.json");
 var requiredChecks = JSON.parse(fs.readFileSync(checkSetPath, "utf8")).checks;
+
+function createCheckResult(definition, status) {
+  return {
+    schemaVersion: 1,
+    checkId: definition.id,
+    status: status,
+    assertions: definition.requiredAssertions.map(function (assertionId, index) {
+      var assertionStatus = status;
+
+      if (status === "failed" && index > 0) {
+        assertionStatus = "passed";
+      }
+
+      var assertion = {
+        id: assertionId,
+        status: assertionStatus
+      };
+
+      if (assertionStatus !== "passed") {
+        assertion.reason = "Synthetic " + assertionStatus + " result";
+      }
+
+      return assertion;
+    })
+  };
+}
 
 function createChecks(workspace, status) {
   return requiredChecks.map(function (definition) {
@@ -35,7 +62,11 @@ function createChecks(workspace, status) {
         var evidencePath = path.join(workspace, relativePath);
 
         fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
-        fs.writeFileSync(evidencePath, definition.id + " " + kind + " synthetic evidence\n");
+        if (kind === "result") {
+          fs.writeFileSync(evidencePath, JSON.stringify(createCheckResult(definition, status), null, 2));
+        } else {
+          fs.writeFileSync(evidencePath, definition.id + " " + kind + " synthetic evidence\n");
+        }
         return { path: relativePath.split(path.sep).join("/"), kind: kind };
       })
     };
@@ -418,6 +449,8 @@ test("the npm entry point and status contract are documented", function () {
   assert.match(documentation, /退出码 `1`.*有效报告/);
   assert.match(documentation, /退出码 `2`.*schema 或证据不完整/);
   assert.match(documentation, /npm run phase0 -- run --input/);
+  assert.match(documentation, /npm run phase0 -- execute --input/);
+  assert.match(documentation, /phase0-check-result\.schema\.json/);
   assert.match(documentation, /validate-corpus/);
   assert.match(documentation, /validate-checks/);
   assert.match(documentation, /validate-report/);
@@ -458,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.0.0");
+  assert.equal(checkSet.checkSetVersion, "1.1.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [
@@ -478,6 +511,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
     assert.ok(check.requiredEvidenceKinds.includes("result"), check.id);
     assert.ok(check.requiredEvidenceKinds.includes("log"), check.id);
     assert.ok(check.passedEvidenceKinds.length > 0, check.id);
+    assert.ok(check.requiredAssertions.length > 0, check.id);
   });
 });
 
@@ -653,7 +687,10 @@ test("report filenames used as source evidence cannot overwrite archived evidenc
   });
 
   checks[0].evidence[0].path = "report.json";
-  fs.writeFileSync(path.join(workspace, "report.json"), "synthetic result evidence\n");
+  fs.writeFileSync(
+    path.join(workspace, "report.json"),
+    JSON.stringify(createCheckResult(requiredChecks[0], "passed"), null, 2)
+  );
   fs.writeFileSync(inputPath, JSON.stringify({
     schemaVersion: 1,
     runId: "phase0-reserved-evidence-name",
@@ -688,4 +725,293 @@ test("report filenames used as source evidence cannot overwrite archived evidenc
   ]);
 
   assert.equal(validationResult.status, 0, validationResult.stderr);
+});
+
+test("empty evidence files cannot satisfy the Phase 0 contract", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var inputPath = path.join(workspace, "run.json");
+  var checks = createChecks(workspace, "passed");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(path.join(workspace, checks[0].evidence[1].path), "");
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-empty-evidence",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: checks
+  }, null, 2));
+
+  var result = invokeCli(["run", "--input", inputPath, "--output", path.join(workspace, "report")]);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /evidence file.*empty/i);
+});
+
+test("result evidence must be structured and match its check", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var inputPath = path.join(workspace, "run.json");
+  var checks = createChecks(workspace, "passed");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(path.join(workspace, checks[0].evidence[0].path), "not JSON\n");
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-malformed-result",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: checks
+  }, null, 2));
+
+  var result = invokeCli(["run", "--input", inputPath, "--output", path.join(workspace, "report")]);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /result evidence.*JSON/i);
+});
+
+test("report archives the pinned corpus and check set for standalone validation", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var inputPath = path.join(workspace, "run.json");
+  var outputDirectory = path.join(workspace, "report");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-self-contained-report",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: createChecks(workspace, "passed")
+  }, null, 2));
+
+  var runResult = invokeCli(["run", "--input", inputPath, "--output", outputDirectory]);
+
+  assert.equal(runResult.status, 0, runResult.stderr);
+
+  var report = JSON.parse(fs.readFileSync(path.join(outputDirectory, "report.json"), "utf8"));
+
+  assert.equal(report.corpus.manifest, "inputs/corpus/manifest.json");
+  assert.equal(report.checkSet.manifest, "inputs/check-set/checks.json");
+  assert.equal(fs.existsSync(path.join(outputDirectory, report.corpus.manifest)), true);
+  assert.equal(fs.existsSync(path.join(outputDirectory, report.checkSet.manifest)), true);
+  assert.equal(fs.existsSync(path.join(outputDirectory, "inputs/corpus/word/minimal-document.docx")), true);
+
+  var validationResult = invokeCli(["validate-report", "--report", path.join(outputDirectory, "report.json")]);
+  assert.equal(validationResult.status, 0, validationResult.stderr);
+});
+
+test("evidence paths cannot escape through directory links", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var outsideDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-outside-"));
+  var linkedDirectory = path.join(workspace, "linked-evidence");
+  var inputPath = path.join(workspace, "run.json");
+  var checks = createChecks(workspace, "passed");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+    fs.rmSync(outsideDirectory, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(
+    path.join(outsideDirectory, "result.json"),
+    JSON.stringify(createCheckResult(requiredChecks[0], "passed"), null, 2)
+  );
+
+  try {
+    fs.symlinkSync(outsideDirectory, linkedDirectory, process.platform === "win32" ? "junction" : "dir");
+  } catch (error) {
+    if (error.code === "EPERM" || error.code === "EACCES") {
+      t.skip("creating directory links is not permitted in this environment");
+      return;
+    }
+    throw error;
+  }
+
+  checks[0].evidence[0].path = "linked-evidence/result.json";
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-linked-evidence",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: checks
+  }, null, 2));
+
+  var result = invokeCli(["run", "--input", inputPath, "--output", path.join(workspace, "report")]);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /evidence file.*real path.*inside/i);
+});
+
+test("execute runs a registered check provider", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-provider-"));
+  var definition = Object.assign({}, requiredChecks[0], {
+    provider: "tests/fixtures/phase0-provider.js"
+  });
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  var checks = phase0Evidence.executeCheckProviders({
+    runId: "phase0-provider-test",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    }
+  }, workspace, { checks: [definition] });
+
+  assert.equal(checks.length, 1);
+  assert.equal(checks[0].status, "passed");
+  assert.ok(checks[0].evidence.some(function (item) { return item.kind === "result"; }));
+  checks[0].evidence.forEach(function (item) {
+    assert.equal(fs.existsSync(path.join(workspace, item.path)), true);
+  });
+});
+
+test("execute reports unregistered Phase 0 providers as not-run", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-execute-"));
+  var inputPath = path.join(workspace, "execution.json");
+  var outputDirectory = path.join(workspace, "report");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-no-providers",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    }
+  }, null, 2));
+
+  var result = invokeCli(["execute", "--input", inputPath, "--output", outputDirectory]);
+
+  assert.equal(result.status, 1, result.stderr);
+
+  var report = JSON.parse(fs.readFileSync(path.join(outputDirectory, "report.json"), "utf8"));
+  assert.equal(report.overallStatus, "not-run");
+  assert.equal(report.checks.length, requiredChecks.length);
+  report.checks.forEach(function (check) {
+    assert.equal(check.status, "not-run");
+    assert.match(check.reason, /No check provider is registered/);
+  });
+});
+
+test("result evidence cannot omit a required acceptance assertion", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var inputPath = path.join(workspace, "run.json");
+  var checks = createChecks(workspace, "passed");
+  var resultPath = path.join(workspace, checks[0].evidence[0].path);
+  var resultEvidence = JSON.parse(fs.readFileSync(resultPath, "utf8"));
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  resultEvidence.assertions.pop();
+  fs.writeFileSync(resultPath, JSON.stringify(resultEvidence, null, 2));
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-missing-assertion",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: checks
+  }, null, 2));
+
+  var result = invokeCli(["run", "--input", inputPath, "--output", path.join(workspace, "report")]);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /required assertions do not match/i);
+});
+
+test("report output cannot escape through a pre-existing directory link", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-"));
+  var outsideDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-output-"));
+  var inputPath = path.join(workspace, "run.json");
+  var outputDirectory = path.join(workspace, "report");
+
+  t.after(function () {
+    fs.rmSync(workspace, { recursive: true, force: true });
+    fs.rmSync(outsideDirectory, { recursive: true, force: true });
+  });
+
+  fs.mkdirSync(outputDirectory);
+  try {
+    fs.symlinkSync(
+      outsideDirectory,
+      path.join(outputDirectory, "evidence"),
+      process.platform === "win32" ? "junction" : "dir"
+    );
+  } catch (error) {
+    if (error.code === "EPERM" || error.code === "EACCES") {
+      t.skip("creating directory links is not permitted in this environment");
+      return;
+    }
+    throw error;
+  }
+
+  fs.writeFileSync(inputPath, JSON.stringify({
+    schemaVersion: 1,
+    runId: "phase0-linked-output",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    startedAt: "2026-08-30T08:00:00.000Z",
+    finishedAt: "2026-08-30T08:05:00.000Z",
+    environment: createAvailableEnvironment(),
+    corpus: {
+      version: "1.0.0",
+      manifest: "corpus/phase0/manifest.json"
+    },
+    checks: createChecks(workspace, "passed")
+  }, null, 2));
+
+  var result = invokeCli(["run", "--input", inputPath, "--output", outputDirectory]);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /archived evidence path parent.*(?:real path|symbolic link)/i);
+  assert.equal(fs.existsSync(path.join(outsideDirectory, "vsto-installation")), false);
 });

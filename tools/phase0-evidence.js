@@ -11,7 +11,11 @@ var runSchemaPath = path.join(projectRoot, "schemas", "phase0-run.schema.json");
 var corpusSchemaPath = path.join(projectRoot, "schemas", "phase0-corpus.schema.json");
 var reportSchemaPath = path.join(projectRoot, "schemas", "phase0-report.schema.json");
 var checkSetSchemaPath = path.join(projectRoot, "schemas", "phase0-checks.schema.json");
+var checkResultSchemaPath = path.join(projectRoot, "schemas", "phase0-check-result.schema.json");
+var executionSchemaPath = path.join(projectRoot, "schemas", "phase0-execution.schema.json");
 var checkSetPath = path.join(projectRoot, "phase0", "checks.json");
+var archivedCorpusManifestLocation = "inputs/corpus/manifest.json";
+var archivedCheckSetLocation = "inputs/check-set/checks.json";
 var statusPolicies = {
   passed: {
     precedence: 0,
@@ -81,8 +85,35 @@ function resolvePathInside(rootDirectory, relativePath, description) {
   var resolvedPath = path.resolve(resolvedRoot, relativePath);
   var pathFromRoot = path.relative(resolvedRoot, resolvedPath);
 
-  if (pathFromRoot.startsWith(".." + path.sep) || path.isAbsolute(pathFromRoot)) {
+  if (pathFromRoot === ".." || pathFromRoot.startsWith(".." + path.sep) || path.isAbsolute(pathFromRoot)) {
     throw new Error(description + " must stay inside " + resolvedRoot);
+  }
+
+  return resolvedPath;
+}
+
+function pathIsInside(rootDirectory, candidatePath) {
+  var pathFromRoot = path.relative(rootDirectory, candidatePath);
+
+  return pathFromRoot === "" || (
+    pathFromRoot !== ".." &&
+    !pathFromRoot.startsWith(".." + path.sep) &&
+    !path.isAbsolute(pathFromRoot)
+  );
+}
+
+function realPath(filePath) {
+  var resolveRealPath = fs.realpathSync.native || fs.realpathSync;
+
+  return resolveRealPath(filePath);
+}
+
+function requireRealPathInside(rootDirectory, existingPath, description) {
+  var resolvedRoot = realPath(path.resolve(rootDirectory));
+  var resolvedPath = realPath(existingPath);
+
+  if (!pathIsInside(resolvedRoot, resolvedPath)) {
+    throw new Error(description + " real path must stay inside " + resolvedRoot);
   }
 
   return resolvedPath;
@@ -90,9 +121,49 @@ function resolvePathInside(rootDirectory, relativePath, description) {
 
 function requireFileInside(rootDirectory, relativePath, description) {
   var resolvedPath = resolvePathInside(rootDirectory, relativePath, description);
+  var fileStats;
 
   if (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isFile()) {
     throw new Error(description + " is missing: " + relativePath);
+  }
+
+  resolvedPath = requireRealPathInside(rootDirectory, resolvedPath, description);
+  fileStats = fs.statSync(resolvedPath);
+
+  if (fileStats.size === 0) {
+    throw new Error(description + " is empty: " + relativePath);
+  }
+
+  return resolvedPath;
+}
+
+function prepareWritableFileInside(rootDirectory, relativePath, description) {
+  var resolvedPath = resolvePathInside(rootDirectory, relativePath, description);
+  var parentDirectory = path.dirname(resolvedPath);
+  var resolvedRoot = path.resolve(rootDirectory);
+  var pathFromRoot = path.relative(resolvedRoot, parentDirectory);
+  var currentDirectory = resolvedRoot;
+
+  pathFromRoot.split(path.sep).filter(Boolean).forEach(function (segment) {
+    currentDirectory = path.join(currentDirectory, segment);
+    if (fs.existsSync(currentDirectory)) {
+      if (fs.lstatSync(currentDirectory).isSymbolicLink()) {
+        throw new Error(description + " parent must not be a symbolic link: " + currentDirectory);
+      }
+      if (!fs.statSync(currentDirectory).isDirectory()) {
+        throw new Error(description + " parent must be a directory: " + currentDirectory);
+      }
+      requireRealPathInside(rootDirectory, currentDirectory, description + " parent");
+    } else {
+      fs.mkdirSync(currentDirectory);
+    }
+  });
+
+  if (fs.existsSync(resolvedPath)) {
+    if (fs.lstatSync(resolvedPath).isSymbolicLink()) {
+      throw new Error(description + " must not be a symbolic link: " + relativePath);
+    }
+    requireRealPathInside(rootDirectory, resolvedPath, description);
   }
 
   return resolvedPath;
@@ -122,6 +193,52 @@ function validateWithSchema(value, schemaPath, schemaName) {
     throw new Error(
       schemaName + " schema validation failed: " + validate.errors.map(formatSchemaError).join("; ")
     );
+  }
+}
+
+function readJsonFile(filePath, description) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(description + " must contain valid JSON: " + error.message);
+    }
+    throw error;
+  }
+}
+
+function aggregateStatuses(items) {
+  var highestPrecedence = items.reduce(function (highest, item) {
+    return Math.max(highest, statusPolicies[item.status].precedence);
+  }, statusPolicies.passed.precedence);
+
+  return Object.keys(statusPolicies).find(function (status) {
+    return statusPolicies[status].precedence === highestPrecedence;
+  });
+}
+
+function validateCheckResult(resultPath, check, definition) {
+  var result = readJsonFile(resultPath, "result evidence for " + check.id);
+  var assertionIds;
+
+  validateWithSchema(result, checkResultSchemaPath, "result evidence for " + check.id);
+
+  if (result.checkId !== check.id) {
+    throw new Error("result evidence validation failed: checkId does not match " + check.id);
+  }
+  if (result.status !== check.status) {
+    throw new Error("result evidence validation failed: status does not match " + check.id);
+  }
+  if (aggregateStatuses(result.assertions) !== result.status) {
+    throw new Error("result evidence validation failed: assertion statuses do not match " + check.id);
+  }
+
+  assertionIds = result.assertions.map(function (assertion) { return assertion.id; });
+  if (
+    assertionIds.length !== definition.requiredAssertions.length ||
+    assertionIds.some(function (id, index) { return id !== definition.requiredAssertions[index]; })
+  ) {
+    throw new Error("result evidence validation failed: required assertions do not match " + check.id);
   }
 }
 
@@ -196,12 +313,34 @@ function validateRequiredRuntimes(environment, checkSet) {
   }
 }
 
+function validateResultEvidence(checks, rootDirectory, checkSet, locationProperty) {
+  checks.forEach(function (check, index) {
+    var definition = checkSet.checks[index];
+
+    check.evidence.forEach(function (item) {
+      if (item.kind === "result") {
+        validateCheckResult(
+          requireFileInside(rootDirectory, item[locationProperty], "result evidence file"),
+          check,
+          definition
+        );
+      }
+    });
+  });
+}
+
 function validateRunEvidence(input, inputDirectory, checkSet) {
   validateChecksAgainstSet(input.checks, checkSet);
 
   input.checks.forEach(function (check) {
     if (Date.parse(check.finishedAt) < Date.parse(check.startedAt)) {
       throw new Error("evidence validation failed: " + check.id + " finishes before it starts");
+    }
+    if (
+      Date.parse(check.startedAt) < Date.parse(input.startedAt) ||
+      Date.parse(check.finishedAt) > Date.parse(input.finishedAt)
+    ) {
+      throw new Error("evidence validation failed: " + check.id + " timestamps must stay inside the run");
     }
 
     check.evidence.forEach(function (item) {
@@ -214,12 +353,12 @@ function validateRunEvidence(input, inputDirectory, checkSet) {
   }
 
   validateRequiredRuntimes(input.environment, checkSet);
+  validateResultEvidence(input.checks, inputDirectory, checkSet, "path");
 }
 
 function overallStatus(checks, environment) {
-  var highestPrecedence = checks.reduce(function (highest, check) {
-    return Math.max(highest, statusPolicies[check.status].precedence);
-  }, statusPolicies.passed.precedence);
+  var calculatedStatus = aggregateStatuses(checks);
+  var highestPrecedence = statusPolicies[calculatedStatus].precedence;
 
   var environmentUnavailable = (
     environment.word.availability === "unavailable" ||
@@ -276,6 +415,101 @@ function validateCheckSet(manifestPath) {
 
   validateWithSchema(manifest, checkSetSchemaPath, "check set");
   return manifest;
+}
+
+function createNotRunCheck(definition, reason) {
+  var timestamp = new Date().toISOString();
+
+  return {
+    id: definition.id,
+    name: definition.name,
+    status: "not-run",
+    reason: reason,
+    startedAt: timestamp,
+    finishedAt: timestamp,
+    evidence: []
+  };
+}
+
+function createProviderFailureCheck(definition, workspace, error) {
+  var timestamp = new Date().toISOString();
+  var errorType = error && /^[A-Za-z][A-Za-z0-9]*$/.test(error.name) ? error.name : "Error";
+  var evidence = definition.requiredEvidenceKinds.map(function (kind) {
+    var extension = kind === "result" ? ".json" : ".txt";
+    var relativePath = toPortablePath(path.join("evidence", definition.id, kind + extension));
+    var evidencePath = prepareWritableFileInside(workspace, relativePath, "provider failure evidence");
+
+    if (kind === "result") {
+      fs.writeFileSync(evidencePath, JSON.stringify({
+        schemaVersion: 1,
+        checkId: definition.id,
+        status: "failed",
+        assertions: definition.requiredAssertions.map(function (id, index) {
+          return {
+            id: id,
+            status: index === 0 ? "failed" : "not-run",
+            reason: index === 0 ? "The check provider failed" : "The provider stopped before this assertion"
+          };
+        })
+      }, null, 2));
+    } else {
+      fs.writeFileSync(
+        evidencePath,
+        "The check provider failed before producing complete evidence. Error type: " + errorType + "\n"
+      );
+    }
+
+    return { path: relativePath, kind: kind };
+  });
+
+  return {
+    id: definition.id,
+    name: definition.name,
+    status: "failed",
+    startedAt: timestamp,
+    finishedAt: new Date().toISOString(),
+    evidence: evidence
+  };
+}
+
+function executeCheckProviders(executionInput, workspace, checkSet) {
+  return checkSet.checks.map(function (definition) {
+    var providerPath;
+    var provider;
+    var result;
+
+    if (!definition.provider) {
+      return createNotRunCheck(
+        definition,
+        "No check provider is registered for " + definition.id
+      );
+    }
+
+    try {
+      providerPath = requireFileInside(projectRoot, definition.provider, "check provider");
+      delete require.cache[providerPath];
+      provider = require(providerPath);
+      if (!provider || typeof provider.run !== "function") {
+        throw new Error("the provider must export a run(context) function");
+      }
+
+      result = provider.run({
+        definition: definition,
+        environment: executionInput.environment,
+        corpus: executionInput.corpus,
+        commit: executionInput.commit,
+        runId: executionInput.runId,
+        workspace: workspace,
+        projectRoot: projectRoot
+      });
+      if (result && typeof result.then === "function") {
+        throw new Error("asynchronous providers are not supported");
+      }
+      return result;
+    } catch (error) {
+      return createProviderFailureCheck(definition, workspace, error);
+    }
+  });
 }
 
 function buildReport(input, inputDirectory, corpus, checkSet) {
@@ -347,12 +581,12 @@ function validateReport(report, reportDirectory) {
     validateArchivedEvidence(report, reportDirectory);
 
     var corpusManifestPath = requireFileInside(
-      projectRoot,
+      reportDirectory,
       report.corpus.manifest,
       "report corpus manifest"
     );
     var reportCheckSetPath = requireFileInside(
-      projectRoot,
+      reportDirectory,
       report.checkSet.manifest,
       "report check set"
     );
@@ -374,6 +608,7 @@ function validateReport(report, reportDirectory) {
     }
     validateChecksAgainstSet(report.checks, checkSet);
     validateRequiredRuntimes(report.environment, checkSet);
+    validateResultEvidence(report.checks, reportDirectory, checkSet, "location");
   }
 
   return report;
@@ -383,18 +618,51 @@ function archiveEvidence(input, inputDirectory, outputDirectory) {
   input.checks.forEach(function (check) {
     check.evidence.forEach(function (item) {
       var sourcePath = requireFileInside(inputDirectory, item.path, "evidence file");
-      var targetPath = resolvePathInside(
+      var targetPath = prepareWritableFileInside(
         outputDirectory,
         archivedEvidenceLocation(check, item),
         "archived evidence path"
       );
 
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
       if (path.resolve(sourcePath) !== path.resolve(targetPath)) {
         fs.copyFileSync(sourcePath, targetPath);
       }
     });
   });
+}
+
+function copyFileIntoReport(sourcePath, outputDirectory, location, description) {
+  var targetPath = prepareWritableFileInside(outputDirectory, location, description);
+
+  if (path.resolve(sourcePath) !== path.resolve(targetPath)) {
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+}
+
+function archiveReportInputs(corpusManifestPath, corpusManifest, outputDirectory) {
+  var corpusDirectory = path.dirname(corpusManifestPath);
+  var archivedCorpusDirectory = path.posix.dirname(archivedCorpusManifestLocation);
+
+  copyFileIntoReport(
+    corpusManifestPath,
+    outputDirectory,
+    archivedCorpusManifestLocation,
+    "archived corpus manifest"
+  );
+  corpusManifest.entries.forEach(function (entry) {
+    copyFileIntoReport(
+      requireFileInside(corpusDirectory, entry.path, "corpus file"),
+      outputDirectory,
+      toPortablePath(path.join(archivedCorpusDirectory, entry.path)),
+      "archived corpus file"
+    );
+  });
+  copyFileIntoReport(
+    requireFileInside(projectRoot, "phase0/checks.json", "check set"),
+    outputDirectory,
+    archivedCheckSetLocation,
+    "archived check set"
+  );
 }
 
 function describeWord(word) {
@@ -487,29 +755,81 @@ function run(inputPath, outputDirectory) {
 
   var report = buildReport(input, inputDirectory, {
     version: input.corpus.version,
-    manifest: toPortablePath(input.corpus.manifest),
+    manifest: archivedCorpusManifestLocation,
     sha256: sha256(corpusManifestPath)
   }, {
     version: checkSet.checkSetVersion,
-    manifest: "phase0/checks.json",
+    manifest: archivedCheckSetLocation,
     sha256: sha256(checkSetPath)
   });
   validateReport(report);
 
   fs.mkdirSync(outputDirectory, { recursive: true });
+  requireRealPathInside(outputDirectory, outputDirectory, "report output directory");
+  archiveReportInputs(corpusManifestPath, corpusManifest, outputDirectory);
   archiveEvidence(input, inputDirectory, outputDirectory);
   fs.writeFileSync(
-    path.join(outputDirectory, "report.json"),
+    prepareWritableFileInside(outputDirectory, "report.json", "JSON report"),
     JSON.stringify(report, null, 2) + "\n"
   );
-  fs.writeFileSync(path.join(outputDirectory, "report.md"), renderMarkdown(report));
+  fs.writeFileSync(
+    prepareWritableFileInside(outputDirectory, "report.md", "Markdown report"),
+    renderMarkdown(report)
+  );
   validateReport(report, path.resolve(outputDirectory));
 
   return report;
 }
 
+function execute(inputPath, outputDirectory) {
+  var resolvedInputPath = path.resolve(inputPath);
+  var executionInput = readJsonFile(resolvedInputPath, "execution input");
+  var checkSet = validateCheckSet(checkSetPath);
+  var corpusManifestPath;
+  var corpusManifest;
+  var workspace;
+  var generatedInputPath;
+  var checks;
+  var finishedAt;
+
+  validateWithSchema(executionInput, executionSchemaPath, "execution input");
+  validateRequiredRuntimes(executionInput.environment, checkSet);
+  corpusManifestPath = requireFileInside(
+    projectRoot,
+    executionInput.corpus.manifest,
+    "corpus manifest"
+  );
+  corpusManifest = validateCorpus(corpusManifestPath);
+  if (corpusManifest.corpusVersion !== executionInput.corpus.version) {
+    throw new Error("corpus validation failed: input version does not match the manifest");
+  }
+
+  workspace = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "formulabridge-phase0-execute-"));
+  generatedInputPath = path.join(workspace, "run.json");
+
+  try {
+    checks = executeCheckProviders(executionInput, workspace, checkSet);
+    finishedAt = new Date().toISOString();
+    fs.writeFileSync(generatedInputPath, JSON.stringify({
+      schemaVersion: executionInput.schemaVersion,
+      runId: executionInput.runId,
+      commit: executionInput.commit,
+      startedAt: executionInput.startedAt,
+      finishedAt: finishedAt,
+      environment: executionInput.environment,
+      corpus: executionInput.corpus,
+      checks: checks
+    }, null, 2));
+
+    return run(generatedInputPath, outputDirectory);
+  } finally {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
 function main() {
   var argumentsValue = parseArguments(process.argv.slice(2));
+  var report;
 
   if (argumentsValue.command === "validate-corpus" && argumentsValue.manifest) {
     validateCorpus(argumentsValue.manifest);
@@ -530,23 +850,40 @@ function main() {
     return;
   }
 
+  if (
+    argumentsValue.command === "execute" &&
+    argumentsValue.input &&
+    argumentsValue.output
+  ) {
+    report = execute(argumentsValue.input, argumentsValue.output);
+    process.exitCode = statusPolicies[report.overallStatus].exitCode;
+    return;
+  }
+
   if (argumentsValue.command !== "run" || !argumentsValue.input || !argumentsValue.output) {
     throw new Error(
-      "Usage: phase0-evidence run --input <run.json> --output <directory>\n" +
+      "Usage: phase0-evidence execute --input <execution.json> --output <directory>\n" +
+      "       phase0-evidence run --input <run.json> --output <directory>\n" +
       "       phase0-evidence validate-corpus --manifest <manifest.json>\n" +
       "       phase0-evidence validate-checks --manifest <checks.json>\n" +
       "       phase0-evidence validate-report --report <report.json>"
     );
   }
 
-  var report = run(argumentsValue.input, argumentsValue.output);
+  report = run(argumentsValue.input, argumentsValue.output);
 
   process.exitCode = statusPolicies[report.overallStatus].exitCode;
 }
 
-try {
-  main();
-} catch (error) {
-  process.stderr.write("phase0-evidence: " + error.message + "\n");
-  process.exitCode = 2;
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    process.stderr.write("phase0-evidence: " + error.message + "\n");
+    process.exitCode = 2;
+  }
 }
+
+module.exports = {
+  executeCheckProviders: executeCheckProviders
+};

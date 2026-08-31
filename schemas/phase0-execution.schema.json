@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://formulabridge.local/schemas/phase0-execution.schema.json",
+  "title": "FormulaBridge Phase 0 provider execution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "commit", "startedAt", "environment", "corpus"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": {
+      "$ref": "https://formulabridge.local/schemas/phase0-run.schema.json#/$defs/nonEmptyString"
+    },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "startedAt": {
+      "$ref": "https://formulabridge.local/schemas/phase0-run.schema.json#/$defs/timestamp"
+    },
+    "environment": {
+      "$ref": "https://formulabridge.local/schemas/phase0-run.schema.json#/$defs/environment"
+    },
+    "corpus": {
+      "$ref": "https://formulabridge.local/schemas/phase0-run.schema.json#/properties/corpus"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.0.0",
+  "checkSetVersion": "1.1.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -14,28 +14,66 @@
       "name": "VSTO user-level installation and diagnostics",
       "purpose": "Prove signed per-user installation, automatic Word loading, and external diagnostics.",
       "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["installer", "signature-report", "word-load-state", "diagnostics-report"]
+      "passedEvidenceKinds": ["installer", "signature-report", "word-load-state", "diagnostics-report"],
+      "requiredAssertions": [
+        "current-user-installation",
+        "signature-verification",
+        "automatic-ribbon-load",
+        "non-destructive-uninstall",
+        "installation-lifecycle-smoke",
+        "diagnostics-failure-detection",
+        "diagnostics-load-state-consistency",
+        "diagnostics-respects-policy",
+        "diagnostics-fault-smoke",
+        "diagnostics-privacy"
+      ]
     },
     {
       "id": "source-portable-copy",
       "name": "Source-portable ordinary copy",
       "purpose": "Prove ordinary same-document and cross-document copy preserves source while creating a new identity.",
       "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["docx-package", "word-automation"]
+      "passedEvidenceKinds": ["docx-package", "word-automation"],
+      "requiredAssertions": [
+        "managed-formula-payload",
+        "same-document-copy",
+        "cross-document-copy",
+        "new-copy-identity",
+        "move-preserves-identity",
+        "save-reopen-preserves-source",
+        "package-and-word-automation"
+      ]
     },
     {
       "id": "dual-format-roundtrip",
       "name": "SVG and PNG Word round trip",
       "purpose": "Prove embedded SVG and PNG fallback survive Word save, reopen, copy, print, and PDF export.",
       "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["docx-package", "pdf", "visual-diff"]
+      "passedEvidenceKinds": ["docx-package", "pdf", "visual-diff"],
+      "requiredAssertions": [
+        "self-contained-svg-png",
+        "save-reopen-roundtrip",
+        "same-document-copy",
+        "cross-document-copy",
+        "print-and-pdf-output",
+        "works-without-formulabridge"
+      ]
     },
     {
       "id": "tex-isolation",
       "name": "TeX isolation and resource limits",
-      "purpose": "Prove document TeX cannot escape controlled roots or resource and process limits.",
+      "purpose": "Prove document TeX cannot escape controlled roots, access the network, or exceed resource and process limits.",
       "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["security-trace", "resource-report"]
+      "passedEvidenceKinds": ["security-trace", "resource-report"],
+      "requiredAssertions": [
+        "approved-read-write-roots",
+        "filesystem-escape-resistance",
+        "lualatex-file-and-network-resistance",
+        "network-blocking",
+        "immutable-executable-and-policy",
+        "job-cleanup-and-evidence-privacy",
+        "resource-and-process-limits"
+      ]
     }
   ]
 }

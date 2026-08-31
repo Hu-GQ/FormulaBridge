@@ -26,4 +26,4 @@ npm test
 
 ## 阶段 0 验证
 
-[阶段 0 证据基线](docs/phase0-evidence.md)提供统一命令、版本化 schema、无隐私语料清单，以及机器可读 JSON 与人类可读 Markdown 报告。它只建立 Issue #1 的证据契约；四项前置样机由各自 ticket 实现。
+[阶段 0 证据基线](docs/phase0-evidence.md)提供统一执行命令、版本化 schema、无隐私语料清单，以及机器可读 JSON 与人类可读 Markdown 报告。它建立 Issue #1 的提供者与证据契约；四项前置样机由各自 ticket 实现并注册，未注册检查保持 `not-run`，不能误报通过。

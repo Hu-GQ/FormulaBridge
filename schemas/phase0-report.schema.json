@@ -81,7 +81,7 @@
         "kind": { "$ref": "#/$defs/nonEmptyString" },
         "location": { "$ref": "#/$defs/relativePath" },
         "sha256": { "$ref": "#/$defs/sha256" },
-        "sizeBytes": { "type": "integer", "minimum": 0 }
+        "sizeBytes": { "type": "integer", "minimum": 1 }
       }
     },
     "check": {
