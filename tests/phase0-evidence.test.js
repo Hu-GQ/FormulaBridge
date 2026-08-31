@@ -491,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.1.0");
+  assert.equal(checkSet.checkSetVersion, "1.2.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [
@@ -902,7 +902,7 @@ test("execute runs a registered check provider", function (t) {
   });
 });
 
-test("execute reports unregistered Phase 0 providers as not-run", function (t) {
+test("execute runs the VSTO provider as blocked and leaves unregistered providers not-run", function (t) {
   var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-execute-"));
   var inputPath = path.join(workspace, "execution.json");
   var outputDirectory = path.join(workspace, "report");
@@ -923,14 +923,26 @@ test("execute reports unregistered Phase 0 providers as not-run", function (t) {
     }
   }, null, 2));
 
+  var previousInstaller = process.env.FORMULABRIDGE_VSTO_INSTALLER;
+  delete process.env.FORMULABRIDGE_VSTO_INSTALLER;
+  t.after(function () {
+    if (previousInstaller === undefined) {
+      delete process.env.FORMULABRIDGE_VSTO_INSTALLER;
+    } else {
+      process.env.FORMULABRIDGE_VSTO_INSTALLER = previousInstaller;
+    }
+  });
+
   var result = invokeCli(["execute", "--input", inputPath, "--output", outputDirectory]);
 
   assert.equal(result.status, 1, result.stderr);
 
   var report = JSON.parse(fs.readFileSync(path.join(outputDirectory, "report.json"), "utf8"));
-  assert.equal(report.overallStatus, "not-run");
+  assert.equal(report.overallStatus, "blocked");
   assert.equal(report.checks.length, requiredChecks.length);
-  report.checks.forEach(function (check) {
+  assert.equal(report.checks[0].status, "blocked");
+  assert.match(report.checks[0].reason, /FORMULABRIDGE_VSTO_INSTALLER/);
+  report.checks.slice(1).forEach(function (check) {
     assert.equal(check.status, "not-run");
     assert.match(check.reason, /No check provider is registered/);
   });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.1.0",
+  "checkSetVersion": "1.2.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -13,6 +13,7 @@
       "id": "vsto-installation",
       "name": "VSTO user-level installation and diagnostics",
       "purpose": "Prove signed per-user installation, automatic Word loading, and external diagnostics.",
+      "provider": "tools/phase0-providers/vsto-installation.js",
       "requiredEvidenceKinds": ["result", "log"],
       "passedEvidenceKinds": ["installer", "signature-report", "word-load-state", "diagnostics-report"],
       "requiredAssertions": [

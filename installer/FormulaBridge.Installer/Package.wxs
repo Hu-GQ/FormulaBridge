@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="FormulaBridge Phase 0 VSTO Spike"
+    Manufacturer="FormulaBridge"
+    Version="0.1.0"
+    UpgradeCode="DCD00642-901B-41FD-9728-A82A6647D64C"
+    Language="1033"
+    Scope="perUser"
+    InstallerVersion="500"
+    Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer FormulaBridge Phase 0 spike is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="FormulaBridgeCompanyFolder" Name="FormulaBridge">
+        <Directory Id="INSTALLFOLDER" Name="Phase0">
+          <Component Id="WordAddInFiles" Guid="499D8B12-DFB0-47B2-A40E-EE2C9483C653" Bitness="always64">
+            <File Id="WordAddInAssembly" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.dll" KeyPath="yes" />
+            <File Id="WordAddInApplicationManifest" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.dll.manifest" />
+            <File Id="WordAddInDeploymentManifest" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.vsto" />
+            <File Id="OfficeToolsUtilities" Source="$(var.AddInPublishDir)\Microsoft.Office.Tools.Common.v4.0.Utilities.dll" />
+          </Component>
+          <Component Id="DiagnosticsFiles" Guid="6C798530-D872-46C6-80DA-D8D992264590" Bitness="always64">
+            <File Id="DiagnosticsExecutable" Source="$(var.DiagnosticsPath)" KeyPath="yes">
+              <Shortcut
+                Id="DiagnosticsShortcut"
+                Directory="FormulaBridgeProgramsFolder"
+                Name="FormulaBridge Phase 0 Diagnostics"
+                WorkingDirectory="INSTALLFOLDER" />
+            </File>
+            <RemoveFolder Id="RemoveFormulaBridgeProgramsFolder" Directory="FormulaBridgeProgramsFolder" On="uninstall" />
+          </Component>
+          <Component Id="WordAddInRegistration" Guid="07B9C02B-5E2C-471C-A95C-9D8FC9AC715B" Bitness="always64">
+            <RemoveFile Id="RemoveWordLoadState" Name="word-load-state.json" On="uninstall" />
+            <RemoveFile Id="RemoveWordLoadStateTemporaryFiles" Name="word-load-state.json.*.tmp" On="uninstall" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Microsoft\Office\Word\Addins\FormulaBridge.WordAddIn"
+              Name="Description"
+              Type="string"
+              Value="FormulaBridge Phase 0 VSTO automatic-load spike" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Microsoft\Office\Word\Addins\FormulaBridge.WordAddIn"
+              Name="FriendlyName"
+              Type="string"
+              Value="FormulaBridge" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Microsoft\Office\Word\Addins\FormulaBridge.WordAddIn"
+              Name="LoadBehavior"
+              Type="integer"
+              Value="3" />
+            <RegistryValue
+              Root="HKCU"
+              Key="Software\Microsoft\Office\Word\Addins\FormulaBridge.WordAddIn"
+              Name="Manifest"
+              Type="string"
+              Value="file:///[INSTALLFOLDER]FormulaBridge.WordAddIn.vsto|vstolocal"
+              KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="FormulaBridgeProgramsFolder" Name="FormulaBridge" />
+    </StandardDirectory>
+
+    <Feature Id="Phase0Spike" Title="FormulaBridge Phase 0 VSTO Spike" Level="1">
+      <ComponentRef Id="WordAddInFiles" />
+      <ComponentRef Id="DiagnosticsFiles" />
+      <ComponentRef Id="WordAddInRegistration" />
+    </Feature>
+  </Package>
+</Wix>

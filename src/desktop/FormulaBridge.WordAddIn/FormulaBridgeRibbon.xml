@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+  <ribbon>
+    <tabs>
+      <tab id="FormulaBridge.Tab" label="FormulaBridge">
+        <group id="FormulaBridge.Phase0.Group" label="FormulaBridge">
+          <button id="FormulaBridge.Phase0.Status" label="Phase 0" enabled="false" screentip="Signed VSTO automatic-load spike" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
