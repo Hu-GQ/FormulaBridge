@@ -8,7 +8,10 @@ param(
     [string]$ExpectedCommit,
 
     [Parameter(Mandatory = $true)]
-    [string]$FragmentPath
+    [string]$FragmentPath,
+
+    [ValidateSet("", "managed-formula-payload", "same-document-copy", "cross-document-copy", "new-copy-identity", "move-preserves-identity", "save-reopen-preserves-source", "package-and-word-automation")]
+    [string]$InduceFailureAfterAssertion = ""
 )
 
 Set-StrictMode -Version Latest
@@ -45,6 +48,8 @@ $reopenedTarget = $null
 $status = "failed"
 $failure = $null
 $evidence = [System.Collections.Generic.List[object]]::new()
+$sourceSnapshotSaved = $false
+$targetSnapshotSaved = $false
 
 foreach ($assertionId in $requiredAssertions) {
     $assertions[$assertionId] = [ordered]@{
@@ -84,6 +89,9 @@ function Set-AssertionPassed {
         status = "passed"
     }
     $script:logLines.Add("PASS $Id")
+    if ($script:InduceFailureAfterAssertion -eq $Id) {
+        throw "Induced diagnostic failure after $Id"
+    }
 }
 
 function Get-SanitizedError {
@@ -241,19 +249,101 @@ function ConvertTo-XmlText {
     return [System.Security.SecurityElement]::Escape($Value)
 }
 
-function Update-FormulaStore {
+function Get-FormulaStoreParts {
     param([Parameter(Mandatory = $true)]$Document)
 
-    for ($index = $Document.CustomXMLParts.Count; $index -ge 1; $index--) {
+    $parts = [System.Collections.Generic.List[object]]::new()
+    for ($index = 1; $index -le $Document.CustomXMLParts.Count; $index++) {
         $part = $Document.CustomXMLParts.Item($index)
         if ($part.NamespaceURI -eq $script:formulaNamespace) {
-            $part.Delete()
+            $parts.Add($part)
+        }
+    }
+    return $parts.ToArray()
+}
+
+function Read-FormulaStoreRecords {
+    param([Parameter(Mandatory = $true)]$Part)
+
+    $xml = [xml]$Part.XML
+    $namespaceManager = [System.Xml.XmlNamespaceManager]::new($xml.NameTable)
+    $namespaceManager.AddNamespace("fb", $script:formulaNamespace)
+    $root = $xml.SelectSingleNode("/fb:formulas", $namespaceManager)
+    if ($null -eq $root -or $root.GetAttribute("schemaVersion") -ne "1") {
+        throw "The authoritative formula store does not match schema version 1"
+    }
+
+    $records = @{}
+    foreach ($node in $root.SelectNodes("fb:formula", $namespaceManager)) {
+        $formulaId = $node.GetAttribute("id")
+        $latexNode = $node.SelectSingleNode("fb:latex", $namespaceManager)
+        if (-not $formulaId -or $records.ContainsKey($formulaId) -or $null -eq $latexNode) {
+            throw "The authoritative formula store contains a missing or duplicate identity"
+        }
+        $record = [pscustomobject]@{
+            schemaVersion = 1
+            formulaId = $formulaId
+            label = $node.GetAttribute("label")
+            latex = $latexNode.InnerText
+            checksum = $node.GetAttribute("checksum")
+        }
+        if ($record.checksum -ne (Get-PayloadChecksum -Payload $record)) {
+            throw "The authoritative formula store checksum is invalid"
+        }
+        $records[$formulaId] = $record
+    }
+    return $records
+}
+
+function Update-FormulaStore {
+    param(
+        [Parameter(Mandatory = $true)]$Document,
+        [string[]]$AllowedRemovedFormulaIds = @()
+    )
+
+    $storeParts = @(Get-FormulaStoreParts -Document $Document)
+    if ($storeParts.Count -gt 1) {
+        throw "The document contains duplicate authoritative formula stores"
+    }
+    $authoritative = if ($storeParts.Count -eq 1) {
+        Read-FormulaStoreRecords -Part $storeParts[0]
+    }
+    else {
+        @{}
+    }
+
+    $payloads = @{}
+    foreach ($control in (Get-ManagedControls -Document $Document)) {
+        $payload = Read-FormulaPayload -Document $Document -FormulaControl $control
+        if ($payloads.ContainsKey($payload.formulaId)) {
+            throw "Managed formula identities must be unique before updating the store"
+        }
+        if ($authoritative.ContainsKey($payload.formulaId)) {
+            $record = $authoritative[$payload.formulaId]
+            if (
+                $record.label -ne $payload.label -or
+                $record.latex -ne $payload.latex -or
+                $record.checksum -ne $payload.checksum
+            ) {
+                throw "The authoritative formula store and portable copy carrier disagree"
+            }
+            $payload = $record
+        }
+        $payloads[$payload.formulaId] = $payload
+    }
+
+    foreach ($formulaId in $authoritative.Keys) {
+        if (
+            -not $payloads.ContainsKey($formulaId) -and
+            $AllowedRemovedFormulaIds -notcontains $formulaId
+        ) {
+            throw "The authoritative formula store contains an unexpected orphan identity"
         }
     }
 
     $records = [System.Text.StringBuilder]::new()
-    foreach ($control in (Get-ManagedControls -Document $Document)) {
-        $payload = Read-FormulaPayload -Document $Document -FormulaControl $control
+    foreach ($formulaId in @($payloads.Keys | Sort-Object)) {
+        $payload = $payloads[$formulaId]
         [void]$records.Append("<fb:formula id=`"")
         [void]$records.Append((ConvertTo-XmlText -Value $payload.formulaId))
         [void]$records.Append("`" label=`"")
@@ -265,9 +355,18 @@ function Update-FormulaStore {
         [void]$records.Append("</fb:latex></fb:formula>")
     }
 
-    $xml = "<fb:formulas xmlns:fb=`"$($script:formulaNamespace)`" schemaVersion=`"1`">" +
+    $candidateXml = "<fb:formulas xmlns:fb=`"$($script:formulaNamespace)`" schemaVersion=`"1`">" +
         $records.ToString() + "</fb:formulas>"
-    [void]$Document.CustomXMLParts.Add($xml)
+    $candidatePart = $Document.CustomXMLParts.Add($candidateXml)
+    try {
+        foreach ($oldPart in $storeParts) {
+            $oldPart.Delete()
+        }
+    }
+    catch {
+        try { $candidatePart.Delete() } catch {}
+        throw
+    }
 }
 
 function Add-ManagedFormula {
@@ -351,7 +450,7 @@ function Reidentify-CopiedFormula {
         -Latex $payload.latex
     Remove-ContainedBookmarks -FormulaControl $FormulaControl
     Write-FormulaPayload -Document $Document -FormulaControl $FormulaControl -Payload $replacement
-    Update-FormulaStore -Document $Document
+    Update-FormulaStore -Document $Document -AllowedRemovedFormulaIds @($payload.formulaId)
     return $replacement
 }
 
@@ -389,7 +488,128 @@ function Save-Docx {
         [Parameter(Mandatory = $true)][string]$Path
     )
 
+    $Document.RemovePersonalInformation = $true
+    $Document.RemoveDocumentInformation(4)
     $Document.SaveAs2($Path, 12)
+}
+
+function Save-ReproductionDocument {
+    param(
+        $Document,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if ($null -eq $Document) {
+        return $false
+    }
+    try {
+        Save-Docx -Document $Document -Path $Path
+        $saved = Test-Path -LiteralPath $Path -PathType Leaf
+        if ($saved) {
+            $saved = (Get-Item -LiteralPath $Path).Length -gt 0
+        }
+        if (-not $saved) {
+            throw "The reproduction document was empty"
+        }
+        return $true
+    }
+    catch {
+        $snapshotFailure = Get-SanitizedError -Exception $_.Exception
+        $script:logLines.Add("WARN failed to preserve synthetic $Name document - $snapshotFailure")
+        return $false
+    }
+}
+
+function Set-ZipTextEntry {
+    param(
+        [Parameter(Mandatory = $true)]$Archive,
+        [Parameter(Mandatory = $true)][string]$EntryName,
+        [Parameter(Mandatory = $true)][string]$Content
+    )
+
+    $entry = $Archive.GetEntry($EntryName)
+    if ($null -ne $entry) {
+        $entry.Delete()
+    }
+    $replacement = $Archive.CreateEntry($EntryName, [System.IO.Compression.CompressionLevel]::Optimal)
+    $stream = $replacement.Open()
+    $writer = [System.IO.StreamWriter]::new($stream, [System.Text.UTF8Encoding]::new($false))
+    try {
+        $writer.Write($Content)
+    }
+    finally {
+        $writer.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Get-ZipTextEntry {
+    param(
+        [Parameter(Mandatory = $true)]$Archive,
+        [Parameter(Mandatory = $true)][string]$EntryName
+    )
+
+    $entry = $Archive.GetEntry($EntryName)
+    if ($null -eq $entry) {
+        return $null
+    }
+    $stream = $entry.Open()
+    $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8, $true)
+    try {
+        return $reader.ReadToEnd()
+    }
+    finally {
+        $reader.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Clear-SavedDocxPersonalMetadata {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $archive = [System.IO.Compression.ZipFile]::Open($Path, [System.IO.Compression.ZipArchiveMode]::Update)
+    try {
+        $core = Get-ZipTextEntry -Archive $archive -EntryName "docProps/core.xml"
+        if ($null -ne $core) {
+            $core = $core -replace '(?s)(<(?:[A-Za-z_][\w.-]*:)?(?:creator|lastModifiedBy)\b[^>]*>).*?(</(?:[A-Za-z_][\w.-]*:)?(?:creator|lastModifiedBy)>)', '$1$2'
+            Set-ZipTextEntry -Archive $archive -EntryName "docProps/core.xml" -Content $core
+        }
+
+        $app = Get-ZipTextEntry -Archive $archive -EntryName "docProps/app.xml"
+        if ($null -ne $app) {
+            $app = $app -replace '(?s)(<(?:Company|Manager)\b[^>]*>).*?(</(?:Company|Manager)>)', '$1$2'
+            $app = $app -replace '(?s)(<Application\b[^>]*>).*?(</Application>)', '$1FormulaBridge Phase 0 synthetic evidence$2'
+            Set-ZipTextEntry -Archive $archive -EntryName "docProps/app.xml" -Content $app
+        }
+
+        if ($null -ne $archive.GetEntry("docProps/custom.xml")) {
+            Set-ZipTextEntry -Archive $archive -EntryName "docProps/custom.xml" -Content '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"/>'
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+function Protect-ReproductionDocument {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return
+    }
+    try {
+        Clear-SavedDocxPersonalMetadata -Path $Path
+        $script:logLines.Add("PRESERVED privacy-scrubbed synthetic $Name document")
+    }
+    catch {
+        $privacyFailure = Get-SanitizedError -Exception $_.Exception
+        $script:logLines.Add("WARN discarded unsanitized synthetic $Name document - $privacyFailure")
+        Remove-Item -LiteralPath $Path -Force
+    }
 }
 
 function Close-WordDocument {
@@ -413,7 +633,7 @@ function Invoke-DocxInspector {
 
     $output = & $NodePath $InspectorPath $DocumentPath 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "DOCX package inspection failed"
+        throw "DOCX package inspection failed: $($output -join ' ')"
     }
     return ($output -join "`n" | ConvertFrom-Json)
 }
@@ -504,6 +724,11 @@ try {
     $movedOriginal = Get-ControlByFormulaId -Document $sourceDocument -FormulaId $originalId
     Update-FormulaStore -Document $sourceDocument
     Assert-Condition $sourceDocument.Bookmarks.Exists($bookmarkName) "Moving the formula removed its reference bookmark"
+    $movedBookmarkRange = $sourceDocument.Bookmarks.Item($bookmarkName).Range
+    Assert-Condition (
+        $movedBookmarkRange.Start -le $movedOriginal.Range.Start -and
+        $movedBookmarkRange.End -ge $movedOriginal.Range.End
+    ) "The reference bookmark no longer encloses the moved formula"
     $bookmarkPayload = Read-FormulaPayload `
         -Document $sourceDocument `
         -FormulaControl (Get-ControlByFormulaId -Document $sourceDocument -FormulaId $originalId)
@@ -512,6 +737,7 @@ try {
     [void]$sourceDocument.Fields.Update()
     Assert-Condition ($sourceDocument.Fields.Count -ge 1) "Moving the formula removed its managed REF field"
     Assert-Condition ($sourceDocument.Fields.Item(1).Code.Text.Contains($bookmarkName)) "The REF field no longer targets the original bookmark"
+    Assert-Condition ($sourceDocument.Fields.Item(1).Result.Text.Contains($visibleFormula)) "The REF field no longer resolves to the moved formula"
     Set-AssertionPassed -Id "move-preserves-identity"
 
     $currentAssertion = "cross-document-copy"
@@ -538,9 +764,11 @@ try {
     Save-Docx -Document $targetDocument -Path $targetPath
     Close-WordDocument -Document $sourceDocument
     $sourceDocument = $null
+    Clear-SavedDocxPersonalMetadata -Path $sourcePath
     $reopenedSource = $word.Documents.Open($sourcePath, $false, $false)
     Close-WordDocument -Document $targetDocument
     $targetDocument = $null
+    Clear-SavedDocxPersonalMetadata -Path $targetPath
     $reopenedTarget = $word.Documents.Open($targetPath, $false, $false)
     $sourcePayloads = @(
         Get-ManagedControls -Document $reopenedSource | ForEach-Object {
@@ -637,6 +865,13 @@ catch {
     $logLines.Add("FAIL $currentAssertion - $failure")
 }
 finally {
+    if ($status -ne "passed") {
+        $sourceSnapshot = if ($null -ne $reopenedSource) { $reopenedSource } else { $sourceDocument }
+        $targetSnapshot = if ($null -ne $reopenedTarget) { $reopenedTarget } else { $targetDocument }
+        $sourceSnapshotSaved = Save-ReproductionDocument -Document $sourceSnapshot -Path $sourcePath -Name "source"
+        $targetSnapshotSaved = Save-ReproductionDocument -Document $targetSnapshot -Path $targetPath -Name "target"
+    }
+
     Close-WordDocument -Document $sourceDocument
     Close-WordDocument -Document $targetDocument
     Close-WordDocument -Document $reopenedSource
@@ -647,6 +882,12 @@ finally {
         }
         catch {
         }
+    }
+    if ($sourceSnapshotSaved) {
+        Protect-ReproductionDocument -Path $sourcePath -Name "source"
+    }
+    if ($targetSnapshotSaved) {
+        Protect-ReproductionDocument -Path $targetPath -Name "target"
     }
 
     for ($index = 0; $index -lt $requiredAssertions.Count; $index++) {
@@ -670,8 +911,16 @@ finally {
     Write-Utf8File -Path $resultPath -Content (($resultEvidence | ConvertTo-Json -Depth 6) + "`n")
     Write-Utf8File -Path $logPath -Content (($logLines -join "`n") + "`n")
 
+    $reproductionArchived = $false
     if ($status -ne "passed" -and (Test-Path -LiteralPath $workingDirectory)) {
         try {
+            Write-Utf8File -Path (Join-Path $workingDirectory "failure-context.json") -Content (([ordered]@{
+                schemaVersion = 1
+                checkId = $checkId
+                assertion = $currentAssertion
+                failure = $(if ($failure) { $failure } else { "automation failed" })
+            } | ConvertTo-Json -Depth 4) + "`n")
+            Copy-Item -LiteralPath $logPath -Destination (Join-Path $workingDirectory "word-automation.log") -Force
             New-Item -ItemType Directory -Path (Split-Path -Parent $packagePath) -Force | Out-Null
             [System.IO.Compression.ZipFile]::CreateFromDirectory(
                 $workingDirectory,
@@ -679,17 +928,26 @@ finally {
                 [System.IO.Compression.CompressionLevel]::Optimal,
                 $false
             )
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
+            try {
+                Assert-Condition ($archive.Entries.Count -gt 0) "The reproduction archive is empty"
+            }
+            finally {
+                $archive.Dispose()
+            }
+            $reproductionArchived = $true
         }
         catch {
             $archiveFailure = Get-SanitizedError -Exception $_.Exception
             $logLines.Add("WARN failed to archive the synthetic reproduction package - $archiveFailure")
             Write-Utf8File -Path $logPath -Content (($logLines -join "`n") + "`n")
+            Write-Utf8File -Path (Join-Path $workingDirectory "word-automation.log") -Content (($logLines -join "`n") + "`n")
         }
     }
 
     $evidence.Add([ordered]@{ path = $resultRelativePath; kind = "result" })
     $evidence.Add([ordered]@{ path = $logRelativePath; kind = "log" })
-    if (Test-Path -LiteralPath $packagePath) {
+    if ($reproductionArchived -or ($status -eq "passed" -and (Test-Path -LiteralPath $packagePath))) {
         $evidence.Add([ordered]@{ path = $packageRelativePath; kind = "docx-package" })
     }
     if (Test-Path -LiteralPath $automationPath) {
@@ -706,7 +964,7 @@ finally {
     }
     Write-Utf8File -Path $resolvedFragmentPath -Content (($fragment | ConvertTo-Json -Depth 6) + "`n")
 
-    if (Test-Path -LiteralPath $workingDirectory) {
+    if ((Test-Path -LiteralPath $workingDirectory) -and ($status -eq "passed" -or $reproductionArchived)) {
         Remove-Item -LiteralPath $workingDirectory -Recurse -Force
     }
 }

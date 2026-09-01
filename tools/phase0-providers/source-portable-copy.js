@@ -8,7 +8,9 @@ function portable(relativePath) {
   return relativePath.split(path.sep).join("/");
 }
 
-function blocked(context, reason) {
+var automationTimeoutMs = 180000;
+
+function terminal(context, status, reason) {
   var startedAt = new Date().toISOString();
   var resultRelativePath = portable(path.join(
     "evidence",
@@ -30,21 +32,21 @@ function blocked(context, reason) {
   fs.writeFileSync(resultPath, JSON.stringify({
     schemaVersion: 1,
     checkId: context.definition.id,
-    status: "blocked",
+    status: status,
     assertions: context.definition.requiredAssertions.map(function (id, index) {
       return {
         id: id,
-        status: index === 0 ? "blocked" : "not-run",
-        reason: index === 0 ? reason : "The Word preflight prevented this assertion"
+        status: index === 0 ? status : "not-run",
+        reason: index === 0 ? reason : "A terminal Word automation condition prevented this assertion"
       };
     })
   }, null, 2) + "\n");
-  fs.writeFileSync(logPath, "Source-portable copy smoke blocked: " + reason + "\n");
+  fs.writeFileSync(logPath, "Source-portable copy smoke " + status + ": " + reason + "\n");
 
   return {
     id: context.definition.id,
     name: context.definition.name,
-    status: "blocked",
+    status: status,
     reason: reason,
     startedAt: startedAt,
     finishedAt: new Date().toISOString(),
@@ -53,6 +55,14 @@ function blocked(context, reason) {
       { path: logRelativePath, kind: "log" }
     ]
   };
+}
+
+function blocked(context, reason) {
+  return terminal(context, "blocked", reason);
+}
+
+function failed(context, reason) {
+  return terminal(context, "failed", reason);
 }
 
 function run(context) {
@@ -87,12 +97,17 @@ function run(context) {
       cwd: context.projectRoot,
       encoding: "utf8",
       windowsHide: true,
-      maxBuffer: 10 * 1024 * 1024
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: automationTimeoutMs,
+      killSignal: "SIGKILL"
     }
   );
 
   if (result.error) {
-    throw result.error;
+    if (result.error.code === "ETIMEDOUT") {
+      return failed(context, "Word clipboard automation exceeded the 180-second timeout");
+    }
+    return failed(context, "Word clipboard automation could not start (" + (result.error.code || "unknown error") + ")");
   }
   if (result.status !== 0 && result.status !== 1) {
     throw new Error("Word clipboard automation exited without a valid result");

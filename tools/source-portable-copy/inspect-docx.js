@@ -203,6 +203,8 @@ function carrierPayload(documentXml, formulaNode) {
   }
 
   var carrierXml = documentXml.slice(carriers[0].start, carriers[0].end);
+  var textRuns = Array.from(carrierXml.matchAll(/<w:r(?:\s[^>]*)?>([\s\S]*?)<\/w:r>/g))
+    .filter(function (match) { return textContent(match[0]).replace(/\s/g, "").length > 0; });
   var encoded = textContent(carrierXml).replace(/\s/g, "");
   var decoded;
 
@@ -238,7 +240,9 @@ function carrierPayload(documentXml, formulaNode) {
   return {
     node: carriers[0],
     payload: decoded,
-    hidden: /<w:vanish(?:\s*\/|\s[^>]*\/)>/.test(carrierXml)
+    hidden: textRuns.length > 0 && textRuns.every(function (match) {
+      return /<w:rPr(?:\s[^>]*)?>[\s\S]*?<w:vanish(?:\s*\/|\s[^>]*\/)>[\s\S]*?<\/w:rPr>/.test(match[0]);
+    })
   };
 }
 
@@ -294,8 +298,41 @@ function customXmlRecords(entries) {
   return records;
 }
 
+function assertSyntheticPackagePrivacy(entries) {
+  var fields = [
+    { part: "docProps/core.xml", names: ["creator", "lastModifiedBy"] },
+    { part: "docProps/app.xml", names: ["Company", "Manager"] }
+  ];
+  var populated = [];
+
+  fields.forEach(function (definition) {
+    if (!entries.has(definition.part)) {
+      return;
+    }
+    var xml = readXml(entries, definition.part);
+    definition.names.forEach(function (name) {
+      var expression = new RegExp(
+        "<(?:[A-Za-z_][\\w.-]*:)?" + name + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[A-Za-z_][\\w.-]*:)?" + name + ">",
+        "i"
+      );
+      var match = xml.match(expression);
+      if (match && decodeXml(match[1].replace(/<[^>]+>/g, "")).trim().length > 0) {
+        populated.push(definition.part + ":" + name);
+      }
+    });
+  });
+
+  if (entries.has("docProps/custom.xml") && /<property\b/i.test(readXml(entries, "docProps/custom.xml"))) {
+    populated.push("docProps/custom.xml:property");
+  }
+  if (populated.length > 0) {
+    fail("synthetic evidence contains personal document metadata fields: " + populated.join(", "));
+  }
+}
+
 function inspect(docxPath) {
   var entries = readZipEntries(docxPath);
+  assertSyntheticPackagePrivacy(entries);
   var documentXml = readXml(entries, "word/document.xml");
   var store = customXmlRecords(entries);
   var formulaIds = new Set();
@@ -382,7 +419,11 @@ function inspect(docxPath) {
     fail("no managed formula was found");
   }
 
-  return { schemaVersion: 1, formulas: formulas };
+  return {
+    schemaVersion: 1,
+    privacy: "synthetic-no-personal-metadata",
+    formulas: formulas
+  };
 }
 
 if (require.main === module) {
@@ -397,4 +438,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { inspect: inspect };
+module.exports = { inspect: inspect, readZipEntries: readZipEntries };

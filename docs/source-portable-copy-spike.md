@@ -15,6 +15,8 @@
 
 普通 `Word.Selection.Copy/Paste` 后，样机验证载体的版本、UUID 和校验值，为粘贴实例生成新 UUID、清除标签及随对象带来的书签，再把记录写入目标文档的 Custom XML。`Word.Selection.Cut/Paste` 作为移动路径，不重写 UUID 或标签；原生 `REF` 字段仍指向随对象移动的原书签。
 
+写回 Custom XML 前先只读解析全部受管对象与既有权威记录；载体缺失、重复、校验失败或与同身份权威记录分歧时立即失败且不删除旧存储。候选 Custom XML 成功创建后才替换旧部件，避免用损坏的复制载体静默覆盖权威源码。
+
 隐藏载体不是保密边界。与 Custom XML 一样，它随未加密 DOCX 明文保存；隐藏格式只防止传输内容成为普通可见公式文本。
 
 ## 自动化范围
@@ -27,6 +29,8 @@
 4. 剪切移动保留 UUID、标签、书签和 `REF` 字段；
 5. 两份文档分别保存、关闭、重开后，源码、身份和标签仍正确；
 6. [`tools/source-portable-copy/inspect-docx.js`](../tools/source-portable-copy/inspect-docx.js)离线检查重开后的 DOCX，交叉验证外层对象、隐藏载体和 Custom XML。
+
+保存前由 Word 清除个人信息，离线检查器还会拒绝 Author、Last Saved By、Company、Manager 或自定义文档属性，防止真实 Office 配置泄露到证据包。统一 provider 对 Word 自动化设置 180 秒硬超时；超时生成结构化失败证据，不能无限占用阶段 0 门禁。
 
 Word 自动化是 Windows 选择加入测试；普通 `npm test` 会跳过它。显式运行：
 
@@ -52,4 +56,4 @@ npm run copy:smoke -- `
 - `evidence/source-portable-copy/docx-package/package-evidence.zip`：两份重开 DOCX 与包检查结果；
 - `evidence/source-portable-copy/word-automation/word-automation.json`：Word 版本、剪贴板路径和身份结果。
 
-失败时仍保留结构化 `result`、日志，以及当次合成工作目录的压缩复现包；不得因失败而删除唯一复现材料或缩小产品契约。正式发布仍需在 Word 支持窗口的完整版本、通道、位数和语言矩阵上重复同一契约。
+失败时会在关闭 Word 前尽力保存两份已去个人信息的现场 DOCX，并把结构化失败上下文、日志和现场文档写入非空复现包。只有复现包确认可读后才删除合成工作目录；归档失败则保留原目录，不得删除唯一复现材料或缩小产品契约。正式发布仍需在 Word 支持窗口的完整版本、通道、位数和语言矩阵上重复同一契约。
