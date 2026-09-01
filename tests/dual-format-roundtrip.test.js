@@ -76,6 +76,7 @@ test("the dual-format smoke fixture embeds self-contained SVG with a PNG fallbac
   assert.equal(provenance.provenance.kind, "local-tex-render");
   assert.match(provenance.provenance.engine, /TeX/);
   assert.equal(provenance.entries.length, 3);
+  assert.equal(fs.readFileSync(path.join(workspace, "fixture", "assets", "formula.svg"), "utf8").includes("\r"), false);
 });
 
 test("the package inspection detects a damaged PNG even while the SVG remains intact", function (t) {

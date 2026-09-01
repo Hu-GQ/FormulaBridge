@@ -32,7 +32,8 @@ $destinationSourcePath = Join-Path $outputPath "formula.tex"
 if ($sourcePath -ne $destinationSourcePath) {
     Copy-Item -LiteralPath $sourcePath -Destination $destinationSourcePath
 }
-$svg = Get-Content -LiteralPath $svgPath -Raw
+$svg = [IO.File]::ReadAllText($svgPath).Replace("`r`n", "`n")
+[IO.File]::WriteAllText($svgPath, $svg, [Text.UTF8Encoding]::new($false))
 $viewBox = [regex]::Match($svg, "viewBox='([^']+)'").Groups[1].Value.Split(" ")
 if ($viewBox.Count -ne 4) { throw "The generated SVG has no usable viewBox." }
 $invariant = [Globalization.CultureInfo]::InvariantCulture
@@ -42,7 +43,7 @@ $entries = @("formula.tex", "formula.svg", "formula.png") | ForEach-Object {
         sha256 = (Get-FileHash -LiteralPath (Join-Path $outputPath $_) -Algorithm SHA256).Hash.ToLowerInvariant()
     }
 }
-[ordered]@{
+$manifest = [ordered]@{
     schemaVersion = 1
     fixtureVersion = $FixtureVersion
     formula = "x^2 + y^2 = z^2"
@@ -65,4 +66,6 @@ $entries = @("formula.tex", "formula.svg", "formula.png") | ForEach-Object {
         height = [double]::Parse($viewBox[3], $invariant)
     }
     entries = $entries
-} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $outputPath "manifest.json") -Encoding utf8
+}
+$manifestJson = ($manifest | ConvertTo-Json -Depth 8).Replace("`r`n", "`n") + "`n"
+[IO.File]::WriteAllText((Join-Path $outputPath "manifest.json"), $manifestJson, [Text.UTF8Encoding]::new($false))
