@@ -115,7 +115,7 @@ test("the Phase 0 provider blocks with structured evidence when Word is unavaila
   assert.deepEqual(result.assertions.map(function (assertion) { return assertion.id; }), definition.requiredAssertions);
 });
 
-test("Word preserves the dual-format formula through round trip, copy, print, and PDF", {
+test("the Phase 0 provider preserves the dual-format formula with existing sibling evidence", {
   skip: process.env.FORMULABRIDGE_RUN_WORD_SMOKE !== "1",
   timeout: 180000
 }, function (t) {
@@ -123,58 +123,22 @@ test("Word preserves the dual-format formula through round trip, copy, print, an
   var definition = JSON.parse(fs.readFileSync(checkSetPath, "utf8")).checks.find(function (check) {
     return check.id === "dual-format-roundtrip";
   });
-  var argumentsList = [
-    "-NoProfile",
-    "-File",
-    smokeScript,
-    "-EvidenceDirectory",
-    workspace,
-    "-ExpectedCommit",
-    "0123456789abcdef0123456789abcdef01234567"
-  ];
-
-  if (process.env.FORMULABRIDGE_PDFTOPPM) {
-    argumentsList.push("-PdfToPpmPath", process.env.FORMULABRIDGE_PDFTOPPM);
-  }
-  if (process.env.FORMULABRIDGE_PRINT_TO_PDF_PRINTER) {
-    argumentsList.push("-PrintToPdfPrinter", process.env.FORMULABRIDGE_PRINT_TO_PDF_PRINTER);
-  }
-  if (process.env.FORMULABRIDGE_PROVISION_PRINT_CAPTURE === "1") {
-    argumentsList.push("-ProvisionPrintCapture");
-  }
-
   t.after(function () {
     fs.rmSync(workspace, { recursive: true, force: true });
   });
+  fs.writeFileSync(path.join(workspace, "previous-provider.txt"), "Existing sibling provider evidence\n");
 
-  var result = childProcess.spawnSync(
-    process.env.FORMULABRIDGE_PWSH || "pwsh",
-    argumentsList,
-    {
-      cwd: projectRoot,
-      encoding: "utf8",
-      windowsHide: true,
-      maxBuffer: 10 * 1024 * 1024,
-      timeout: 180000
-    }
-  );
+  var checks = phase0Evidence.executeCheckProviders({
+    runId: "dual-format-real-word",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    environment: { word: { availability: "available" } },
+    corpus: { version: "1.0.0", manifest: "corpus/phase0/manifest.json" }
+  }, workspace, { checks: [definition] });
+  var fragment = checks[0];
+  var logEvidence = fragment.evidence.find(function (item) { return item.kind === "log"; });
+  var diagnostic = logEvidence ? fs.readFileSync(path.join(workspace, logEvidence.path), "utf8") : "No log evidence";
 
-  var diagnostic = result.stderr || result.stdout || "";
-  var smokeLogPath = path.join(
-    workspace,
-    "evidence",
-    "dual-format-roundtrip",
-    "log",
-    "smoke.log"
-  );
-  if (fs.existsSync(smokeLogPath)) {
-    diagnostic += "\n" + fs.readFileSync(smokeLogPath, "utf8");
-  }
-
-  assert.equal(result.status, 0, diagnostic);
-
-  var fragment = JSON.parse(fs.readFileSync(path.join(workspace, "check-fragment.json"), "utf8"));
-  assert.equal(fragment.status, "passed");
+  assert.equal(fragment.status, "passed", diagnostic);
 
   var evidenceKinds = fragment.evidence.map(function (item) { return item.kind; });
   ["result", "log", "docx-package", "pdf", "print-output", "visual-diff"].forEach(function (kind) {

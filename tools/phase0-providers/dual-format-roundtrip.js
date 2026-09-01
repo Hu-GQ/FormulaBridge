@@ -60,6 +60,8 @@ function run(context) {
   var argumentsList;
   var result;
   var fragmentPath;
+  var providerWorkspace;
+  var fragment;
 
   if (process.platform !== "win32") {
     return blocked(context, "The dual-format Word round-trip smoke requires Windows");
@@ -69,12 +71,13 @@ function run(context) {
   }
 
   scriptPath = path.join(context.projectRoot, "tools", "test-dual-format-roundtrip.ps1");
+  providerWorkspace = fs.mkdtempSync(path.join(context.workspace, "dual-format-roundtrip-"));
   argumentsList = [
     "-NoProfile",
     "-File",
     scriptPath,
     "-EvidenceDirectory",
-    context.workspace,
+    providerWorkspace,
     "-ExpectedCommit",
     context.commit
   ];
@@ -96,7 +99,8 @@ function run(context) {
       cwd: context.projectRoot,
       encoding: "utf8",
       windowsHide: true,
-      maxBuffer: 10 * 1024 * 1024
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 180000
     }
   );
 
@@ -107,12 +111,19 @@ function run(context) {
     throw new Error("Dual-format Word round-trip smoke exited without a valid result");
   }
 
-  fragmentPath = path.join(context.workspace, "check-fragment.json");
+  fragmentPath = path.join(providerWorkspace, "check-fragment.json");
   if (!fs.existsSync(fragmentPath)) {
     throw new Error("Dual-format Word round-trip smoke did not produce check-fragment.json");
   }
 
-  return JSON.parse(fs.readFileSync(fragmentPath, "utf8"));
+  fragment = JSON.parse(fs.readFileSync(fragmentPath, "utf8"));
+  fragment.evidence = fragment.evidence.map(function (item) {
+    return {
+      kind: item.kind,
+      path: portable(path.relative(context.workspace, path.join(providerWorkspace, item.path)))
+    };
+  });
+  return fragment;
 }
 
 module.exports = { run: run };
