@@ -1,6 +1,6 @@
 # 阶段 0 TeX 隔离样机
 
-本样机实现 Issue #6 的本地 LuaLaTeX 安全门禁：在受支持的 Windows 11 x64 环境中，证明文档提供的 TeX 只能读取已批准的 TeX 安装与随机作业目录，只能写入受控输出目录，不能访问网络、创建额外进程或放宽产品资源策略。它不实现正式渲染服务，也不依赖或修改 `src/web/editor` 原型。
+本样机实现 Issue #6 的本地 LuaLaTeX 安全门禁及 Issue #7 的终止、取消和恢复验证：在受支持的 Windows 11 x64 环境中，证明文档提供的 TeX 只能读取已批准的 TeX 安装与随机作业目录，只能写入受控输出目录，不能访问网络、创建额外进程或放宽产品资源策略。它不实现正式渲染服务，也不依赖或修改 `src/web/editor` 原型。
 
 ## 固定隔离机制
 
@@ -45,11 +45,22 @@ npm run tex:smoke -- `
 
 ## 证据与隐私
 
+### 取消与同宿主恢复（Issue #7）
+
+宿主接受 `CancellationToken`，命令行通过 Ctrl+C 或显式的 `--cancel-on-stdin` 重定向控制通道接收 `cancel` 加换行。取消来自宿主控制面；请求 JSON 拒绝未知字段，文档、公式和 preamble 均不能注入新的资源上限。JSON 请求本身最多 64 KiB，TeX 输入仍最多 256 KiB。取消和超时调用 `TerminateJobObject`，等待进程结束后查询 Job Object accounting，只有活动进程数为零且 ACL/profile 清理成功才能报告成功清理。等待清理最多五秒，失败保留明确原因。
+
+`tests/fixtures/TexLifecycleHarness` 直接链接生产请求验证与隔离代码，在同一个进程中顺序执行 13 个任务：正常公式、取消、恢复、超时、恢复、内存耗尽、恢复、文件数洪泛、恢复、字节洪泛、恢复、子进程攻击、恢复。取消探针必须先写出启动标记，防止把“尚未启动就取消”当作运行中取消成功。每次恢复均要求新的正常 PDF、相同宿主 PID、零残留活动进程、作业目录删除及 ACL/profile 清理。Word 同时保留合成哨兵文档，并在运行中及结束后接受 COM 响应检查；已有 Word 窗口时此项为 `blocked`。
+
+`tools/tex-lifecycle-evidence.js` 验证顺序、实测计数、资源上限、终止原因和恢复证据。缺少任一 case、恢复时更换宿主、只有配置而没有触发上限的计量、缺少取消标记或 Word 响应都不能通过。宿主中途失败时归档已完成的 case 和固定失败代码。单元测试使用明确标记的合成证据验证判定器，不能代替 Windows 11 上的真实验收。
+
+这补齐了 [ADR 0006](adr/0006-require-tex-filesystem-isolation.md) 和 [ADR 0021](adr/0021-refuse-release-on-trust-contract-failures.md) 的验证实现，不改变隔离边界、产品上限或发布门禁。原生 API 依据：Microsoft 的 [TerminateJobObject](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-terminatejobobject) 与 [Job Object accounting](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information)。
+
 统一 runner 归档以下相对路径：
 
-- `evidence/tex-isolation/result/result.json`：七项固定断言的状态；
+- `evidence/tex-isolation/result/result.json`：十项固定断言的状态；
 - `evidence/tex-isolation/log/smoke.log`：去除用户名和绝对路径的摘要日志；
 - `evidence/tex-isolation/security-trace/security-trace.json`：token、capability、Job 分配、身份与攻击探针结果；
-- `evidence/tex-isolation/resource-report/resource-report.json`：固定资源上限与终止结果。
+- `evidence/tex-isolation/resource-report/resource-report.json`：固定资源上限与终止结果；
+- `evidence/tex-isolation/lifecycle-report/lifecycle-report.json`：13 个同宿主任务、取消/超时、实测资源计量、清理、恢复 PDF 和 Word 响应证据。
 
 证据不保存 TeX 原始控制台输出、用户目录、盘符或 UNC 绝对输入路径、canary 内容。任一 case 的作业目录、ACL 或 AppContainer profile 删除失败会把清理断言标为 `failed`，因此带残留的运行不能通过阶段 0 门禁。

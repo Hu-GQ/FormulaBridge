@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.6.0",
+  "checkSetVersion": "1.7.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -97,7 +97,8 @@
       ],
       "passedEvidenceKinds": [
         "security-trace",
-        "resource-report"
+        "resource-report",
+        "lifecycle-report"
       ],
       "requiredAssertions": [
         "approved-read-write-roots",
@@ -106,7 +107,10 @@
         "network-blocking",
         "immutable-executable-and-policy",
         "job-cleanup-and-evidence-privacy",
-        "resource-and-process-limits"
+        "resource-and-process-limits",
+        "cancellation-and-process-tree",
+        "same-host-recovery",
+        "word-survives-resource-failures"
       ]
     }
   ]

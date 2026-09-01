@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "1.2.0",
+  "corpusVersion": "1.3.0",
   "privacy": {
     "containsPersonalData": false,
     "provenance": "synthetic"
@@ -125,6 +125,14 @@
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX allocation loop used to prove the immutable Job Object memory ceiling.",
       "sha256": "f1047f2d024fb3696353d1d8d2b9c51fc7dc1dd40d7e895a28570eec2df84bf2"
+    },
+    {
+      "id": "malicious-tex.resource-cancellation",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-cancellation.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic running-task cancellation probe with a ready marker and an infinite loop.",
+      "sha256": "c1bf2fa10ac00cfb338a8149d07e46de3f195b0ad0e06abc5d50ac831fa84621"
     }
   ]
 }

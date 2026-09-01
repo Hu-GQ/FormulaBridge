@@ -345,7 +345,8 @@ test("the versioned malicious TeX corpus covers every filesystem and LuaLaTeX ne
     "malicious-tex.resource-exhaustion",
     "malicious-tex.resource-output",
     "malicious-tex.resource-output-bytes",
-    "malicious-tex.resource-memory"
+    "malicious-tex.resource-memory",
+    "malicious-tex.resource-cancellation"
   ]);
 
   maliciousEntries.forEach(function (entry) {

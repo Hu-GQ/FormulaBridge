@@ -34,6 +34,8 @@ $resourceReportRelativePath = "evidence/tex-isolation/resource-report/resource-r
 $resultPath = Join-Path $resolvedEvidenceDirectory $resultRelativePath
 $logPath = Join-Path $resolvedEvidenceDirectory $logRelativePath
 $securityTracePath = Join-Path $resolvedEvidenceDirectory $securityTraceRelativePath
+$lifecycleReportRelativePath = "evidence/tex-isolation/lifecycle-report/lifecycle-report.json"
+$lifecycleReportPath = Join-Path $resolvedEvidenceDirectory $lifecycleReportRelativePath
 $resourceReportPath = Join-Path $resolvedEvidenceDirectory $resourceReportRelativePath
 $fragmentPath = Join-Path $resolvedEvidenceDirectory "check-fragment.json"
 $startedAt = [DateTime]::UtcNow.ToString("o")
@@ -60,7 +62,10 @@ $assertionOrder = @(
     "network-blocking",
     "immutable-executable-and-policy",
     "job-cleanup-and-evidence-privacy",
-    "resource-and-process-limits"
+    "resource-and-process-limits",
+    "cancellation-and-process-tree",
+    "same-host-recovery",
+    "word-survives-resource-failures"
 )
 $assertions = [ordered]@{}
 
@@ -400,6 +405,9 @@ function Invoke-PolicyRejection {
     return $policyEvidence
 }
 
+. (Join-Path $PSScriptRoot "tex-lifecycle-smoke.ps1")
+Write-EvidenceJson $lifecycleReportPath ([ordered]@{ schemaVersion = 1; status = "not-run"; reason = "The supported-platform and benign-isolation gates have not passed." })
+
 New-Item -ItemType Directory -Path (Split-Path -Parent $logPath) -Force | Out-Null
 Set-Content -LiteralPath $logPath -Value "" -Encoding utf8NoBOM
 Write-SmokeLog "Starting TeX isolation smoke"
@@ -540,6 +548,7 @@ try {
         } else {
             Set-Assertion "resource-and-process-limits" "failed" "Input, batch, wall-clock, memory, output, or single-process enforcement was not observed"
         }
+        Invoke-TexLifecycleSmoke
     } else {
         Set-Assertion "approved-read-write-roots" "failed" "A benign LuaLaTeX formula could not run under the required AppContainer/Job/ACL policy"
         Set-Assertion "filesystem-escape-resistance" "not-run" "The isolation mechanism failed before adversarial filesystem probes"
@@ -565,7 +574,14 @@ catch {
 finally {
     $env:FORMULABRIDGE_OUTSIDE_CANARY = $originalOutsideCanary
     $env:TEXINPUTS = $originalTexInputs
+    foreach ($directory in @($jobDirectories)) {
+        if (-not (Test-PathInside -Root $workspace -Candidate $directory)) { throw "Cleanup target escaped the generated job workspace" }
+    }
+    foreach ($root in @($workspace, $outsideRoot)) {
+        if (-not (Test-PathInside -Root ([IO.Path]::GetTempPath()) -Candidate $root) -or [IO.Path]::GetFullPath($root) -eq [IO.Path]::GetFullPath([IO.Path]::GetTempPath())) { throw "Cleanup target escaped the temporary root" }
+    }
     foreach ($link in @($reparseLinks)) {
+        if (-not (Test-PathInside -Root $workspace -Candidate $link)) { throw "Cleanup link escaped the generated job workspace" }
         if (Test-Path -LiteralPath $link) {
             Remove-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
         }
@@ -604,6 +620,7 @@ $privacyText = @(
     Get-Content -LiteralPath $logPath -Raw
     ($securityTrace | ConvertTo-Json -Depth 20)
     ($resourceReport | ConvertTo-Json -Depth 20)
+    (Get-Content -LiteralPath $lifecycleReportPath -Raw)
 ) -join "`n"
 $containsSensitivePath = [Text.RegularExpressions.Regex]::IsMatch($privacyText, "(?i)[A-Z]:\\") -or
     [Text.RegularExpressions.Regex]::IsMatch($privacyText, $uncPathPattern) -or
@@ -635,6 +652,7 @@ $evidence = @(
     [ordered]@{ path = $logRelativePath; kind = "log" }
     [ordered]@{ path = $securityTraceRelativePath; kind = "security-trace" }
     [ordered]@{ path = $resourceReportRelativePath; kind = "resource-report" }
+    [ordered]@{ path = $lifecycleReportRelativePath; kind = "lifecycle-report" }
 )
 $fragment = [ordered]@{
     id = "tex-isolation"

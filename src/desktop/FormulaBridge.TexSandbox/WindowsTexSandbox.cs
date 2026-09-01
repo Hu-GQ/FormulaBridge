@@ -39,6 +39,27 @@ internal sealed class SandboxRunResult
     [JsonPropertyName("timedOut")]
     public bool TimedOut { get; init; }
 
+    [JsonPropertyName("cancelled")]
+    public bool Cancelled { get; init; }
+
+    [JsonPropertyName("processTreeExited")]
+    public bool ProcessTreeExited { get; init; }
+
+    [JsonPropertyName("activeProcessesAfterCleanup")]
+    public uint? ActiveProcessesAfterCleanup { get; init; }
+
+    [JsonPropertyName("totalProcesses")]
+    public uint? TotalProcesses { get; init; }
+
+    [JsonPropertyName("elapsedMilliseconds")]
+    public long ElapsedMilliseconds { get; init; }
+
+    [JsonPropertyName("observedOutputFiles")]
+    public long ObservedOutputFiles { get; init; }
+
+    [JsonPropertyName("observedOutputBytes")]
+    public long ObservedOutputBytes { get; init; }
+
     [JsonPropertyName("outputLimitExceeded")]
     public bool OutputLimitExceeded { get; init; }
 
@@ -81,7 +102,7 @@ internal static class WindowsTexSandbox
     private const uint CreateNoWindow = 0x08000000;
     private const uint StartfUseShowWindow = 0x00000001;
     private const short SwHide = 0;
-    private const uint Infinite = 0xffffffff;
+    private const uint CleanupWaitMilliseconds = 5000;
     private const uint WaitObject0 = 0x00000000;
     private const uint WaitTimeout = 0x00000102;
     private const uint TokenQuery = 0x0008;
@@ -128,7 +149,7 @@ internal static class WindowsTexSandbox
         return false;
     }
 
-    public static SandboxRunResult Run(SandboxRunConfiguration configuration)
+    public static SandboxRunResult Run(SandboxRunConfiguration configuration, CancellationToken cancellationToken = default)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -150,6 +171,13 @@ internal static class WindowsTexSandbox
         uint capabilityCount = uint.MaxValue;
         uint? exitCode = null;
         var timedOut = false;
+        var cancelled = false;
+        var processTreeExited = false;
+        uint? activeProcessesAfterCleanup = null;
+        uint? totalProcesses = null;
+        long observedOutputFiles = 0;
+        long observedOutputBytes = 0;
+        var stopwatch = new Stopwatch();
         var outputLimitExceeded = false;
         var status = "failed";
         var code = "sandbox-internal-error";
@@ -318,6 +346,10 @@ internal static class WindowsTexSandbox
             }
 
             assignedBeforeResume = true;
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
             if (ResumeThread(processInformation.Thread) == uint.MaxValue)
             {
                 TerminateJobObject(jobHandle, 1);
@@ -325,13 +357,15 @@ internal static class WindowsTexSandbox
                     "sandboxed-process-resume-failed-" + Marshal.GetLastWin32Error().ToString("x8"));
             }
 
-            var stopwatch = Stopwatch.StartNew();
+            stopwatch.Start();
             while (true)
             {
                 var waitResult = WaitForSingleObject(processInformation.Process, 50);
                 if (waitResult == WaitObject0)
                 {
                     var finalOutputUsage = MeasureOutput(configuration.OutputDirectory);
+                    observedOutputFiles = Math.Max(observedOutputFiles, finalOutputUsage.Files);
+                    observedOutputBytes = Math.Max(observedOutputBytes, finalOutputUsage.Bytes);
                     if (OutputCeilingExceeded(finalOutputUsage, configuration))
                     {
                         outputLimitExceeded = true;
@@ -354,13 +388,24 @@ internal static class WindowsTexSandbox
                 }
 
                 var outputUsage = MeasureOutput(configuration.OutputDirectory);
+                observedOutputFiles = Math.Max(observedOutputFiles, outputUsage.Files);
+                observedOutputBytes = Math.Max(observedOutputBytes, outputUsage.Bytes);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    cancelled = true;
+                    status = "terminated";
+                    code = "cancelled";
+                    TerminateJobObject(jobHandle, 1);
+                    WaitForSingleObject(processInformation.Process, CleanupWaitMilliseconds);
+                    break;
+                }
                 if (OutputCeilingExceeded(outputUsage, configuration))
                 {
                     outputLimitExceeded = true;
                     status = "terminated";
                     code = "output-ceiling-exceeded";
                     TerminateJobObject(jobHandle, 1);
-                    WaitForSingleObject(processInformation.Process, Infinite);
+                    WaitForSingleObject(processInformation.Process, CleanupWaitMilliseconds);
                     break;
                 }
 
@@ -370,7 +415,7 @@ internal static class WindowsTexSandbox
                     status = "terminated";
                     code = "wall-clock-ceiling-exceeded";
                     TerminateJobObject(jobHandle, 1);
-                    WaitForSingleObject(processInformation.Process, Infinite);
+                    WaitForSingleObject(processInformation.Process, CleanupWaitMilliseconds);
                     break;
                 }
             }
@@ -382,6 +427,12 @@ internal static class WindowsTexSandbox
 
             stage = "job-object-accounting";
             peakJobMemoryBytes = GetPeakJobMemoryBytes(jobHandle);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+            status = "terminated";
+            code = "cancelled-before-resume";
         }
         catch (SandboxStageException error)
         {
@@ -398,6 +449,35 @@ internal static class WindowsTexSandbox
         }
         finally
         {
+            // Drain the entire job before removing the process identity or ACLs.
+            // Waiting for just the initial PID does not prove all descendants exited.
+            if (jobHandle != IntPtr.Zero && assignedBeforeResume)
+            {
+                try
+                {
+                    var accounting = ReadJobAccounting(jobHandle);
+                    if (accounting.ActiveProcesses != 0) TerminateJobObject(jobHandle, 1);
+                    var cleanupClock = Stopwatch.StartNew();
+                    do
+                    {
+                        accounting = ReadJobAccounting(jobHandle);
+                        if (accounting.ActiveProcesses == 0) break;
+                        Thread.Sleep(25);
+                    } while (cleanupClock.ElapsedMilliseconds < CleanupWaitMilliseconds);
+                    activeProcessesAfterCleanup = accounting.ActiveProcesses;
+                    totalProcesses = accounting.TotalProcesses;
+                    processTreeExited = accounting.ActiveProcesses == 0;
+                    peakJobMemoryBytes = GetPeakJobMemoryBytes(jobHandle);
+                }
+                catch (Win32Exception) { processTreeExited = false; }
+            }
+            else if (processInformation.Process != IntPtr.Zero)
+            {
+                TerminateProcess(processInformation.Process, 1);
+                processTreeExited = WaitForSingleObject(processInformation.Process, CleanupWaitMilliseconds) == WaitObject0;
+            }
+            if (processInformation.Process != IntPtr.Zero && GetExitCodeProcess(processInformation.Process, out var finalExitCode)) exitCode = finalExitCode;
+            stopwatch.Stop();
             if (processInformation.Thread != IntPtr.Zero)
             {
                 CloseHandle(processInformation.Thread);
@@ -456,10 +536,18 @@ internal static class WindowsTexSandbox
         {
             return new SandboxRunResult
             {
-                Status = status,
-                Code = code,
+                Status = processTreeExited && profileDeleted && aclRestored ? status : "failed",
+                Code = assignedBeforeResume && !processTreeExited ? "process-tree-cleanup-failed" :
+                    assignedBeforeResume && (!profileDeleted || !aclRestored) ? "sandbox-identity-cleanup-failed" : code,
                 ExitCode = exitCode,
                 TimedOut = timedOut,
+                Cancelled = cancelled,
+                ProcessTreeExited = processTreeExited,
+                ActiveProcessesAfterCleanup = activeProcessesAfterCleanup,
+                TotalProcesses = totalProcesses,
+                ElapsedMilliseconds = stopwatch.ElapsedMilliseconds,
+                ObservedOutputFiles = observedOutputFiles,
+                ObservedOutputBytes = observedOutputBytes,
                 OutputLimitExceeded = outputLimitExceeded,
                 AppContainerApplied = appContainerApplied,
                 NetworkCapabilityCount = capabilityCount == uint.MaxValue ? 0 : capabilityCount,
@@ -484,6 +572,31 @@ internal static class WindowsTexSandbox
             NetworkCapabilityCount = 0,
             Limits = LimitEvidence(configuration)
         };
+    }
+
+    private static JobAccounting ReadJobAccounting(IntPtr job)
+    {
+        var size = Marshal.SizeOf<JobAccounting>();
+        var pointer = Marshal.AllocHGlobal(size);
+        try
+        {
+            if (!QueryInformationJobObject(job, 1, pointer, (uint)size, out _)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            return Marshal.PtrToStructure<JobAccounting>(pointer);
+        }
+        finally { Marshal.FreeHGlobal(pointer); }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JobAccounting
+    {
+        public long TotalUserTime;
+        public long TotalKernelTime;
+        public long PeriodUserTime;
+        public long PeriodKernelTime;
+        public uint PageFaults;
+        public uint TotalProcesses;
+        public uint ActiveProcesses;
+        public uint TerminatedProcesses;
     }
 
     private static object LimitEvidence(SandboxRunConfiguration configuration)

@@ -19,7 +19,8 @@ test("README links to the authoritative FormulaBridge technical solution", funct
 
   assert.equal(fs.existsSync(technicalSolutionPath), true);
   assert.match(readme, /\[技术方案\]\(docs\/technical-solution\.md\)/);
-  assert.match(readme, /正式实现将从干净基线开始/);
+  assert.match(readme, /已整合到同一代码基线/);
+  assert.match(readme, /代码和单元测试通过不代表阶段 0 发布门禁已通过/);
 });
 
 test("technical solution fixes the approved primary technology stack", function () {

@@ -52,21 +52,41 @@ internal static class Program
             return 0;
         }
 
-        if (args is ["run", "--request", var requestPath])
+        if (args is ["run", "--request", _] or ["run", "--request", _, "--cancel-on-stdin"])
         {
-            return RunRequest(requestPath);
+            if (args.Length == 4 && !Console.IsInputRedirected) return Reject("cancellation-input-must-be-redirected");
+            using var cancellation = new CancellationTokenSource();
+            ConsoleCancelEventHandler handler = (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
+            Console.CancelKeyPress += handler;
+            if (args.Length == 4)
+            {
+                // This is a host control channel, never a field supplied by TeX.
+                _ = Task.Run(() =>
+                {
+                    var command = new char[7];
+                    var count = Console.In.ReadBlock(command, 0, command.Length);
+                    if (new string(command, 0, count).TrimEnd('\r', '\n') == "cancel")
+                    {
+                        try { cancellation.Cancel(); }
+                        catch (ObjectDisposedException) { }
+                    }
+                });
+            }
+            try { return RunRequest(args[2], cancellation.Token); }
+            finally { Console.CancelKeyPress -= handler; }
         }
 
-        Console.Error.WriteLine("Usage: FormulaBridge.TexSandbox describe-policy | run --request <request.json>");
+        Console.Error.WriteLine("Usage: FormulaBridge.TexSandbox describe-policy | run --request <request.json> [--cancel-on-stdin]");
         return 2;
     }
 
-    private static int RunRequest(string requestPath)
+    internal static int RunRequest(string requestPath, CancellationToken cancellationToken = default)
     {
         SandboxRequest? request;
 
         try
         {
+            if (new FileInfo(requestPath).Length > 64 * 1024) return Reject("request-ceiling-exceeded");
             request = JsonSerializer.Deserialize<SandboxRequest>(File.ReadAllText(requestPath));
         }
         catch (JsonException)
@@ -77,6 +97,7 @@ internal static class Program
         {
             return Reject("request-unavailable");
         }
+        catch (UnauthorizedAccessException) { return Reject("request-unavailable"); }
 
         if (request is null || request.SchemaVersion != 1)
         {
@@ -125,7 +146,7 @@ internal static class Program
             return Reject("input-ceiling-exceeded");
         }
 
-        if (request.EngineSha256.Length != 64 ||
+        if (string.IsNullOrEmpty(request.EngineSha256) || request.EngineSha256.Length != 64 ||
             request.EngineSha256.Any(character => !Uri.IsHexDigit(character)))
         {
             return Reject("invalid-engine-identity");
@@ -161,7 +182,7 @@ internal static class Program
                 MemoryBytes,
                 OutputFiles,
                 OutputBytes,
-                ActiveProcesses));
+                ActiveProcesses), cancellationToken);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -203,6 +224,7 @@ internal static class Program
         return exitCode;
     }
 
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     private sealed class SandboxRequest
     {
         [JsonPropertyName("schemaVersion")]
