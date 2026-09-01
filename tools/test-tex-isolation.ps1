@@ -38,7 +38,7 @@ $lifecycleReportRelativePath = "evidence/tex-isolation/lifecycle-report/lifecycl
 $lifecycleReportPath = Join-Path $resolvedEvidenceDirectory $lifecycleReportRelativePath
 $resourceReportPath = Join-Path $resolvedEvidenceDirectory $resourceReportRelativePath
 $fragmentPath = Join-Path $resolvedEvidenceDirectory "check-fragment.json"
-$startedAt = [DateTime]::UtcNow.ToString("o")
+$startedAt = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 $workspace = Join-Path ([IO.Path]::GetTempPath()) ("formulabridge-tex-smoke-" + [Guid]::NewGuid().ToString("N"))
 $outsideRoot = Join-Path ([IO.Path]::GetTempPath()) ("formulabridge-tex-outside-" + [Guid]::NewGuid().ToString("N"))
 $canaryPath = Join-Path $outsideRoot "outside-canary.txt"
@@ -112,7 +112,7 @@ function Write-SmokeLog {
         $uncPathPattern,
         "<redacted-path>")
     $safeMessage = $safeMessage.Replace([Environment]::UserName, "<redacted-user>")
-    Add-Content -LiteralPath $logPath -Value (([DateTime]::UtcNow.ToString("o")) + " " + $safeMessage) -Encoding utf8
+    Add-Content -LiteralPath $logPath -Value (([DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")) + " " + $safeMessage) -Encoding utf8
 }
 
 function Test-PathInside {
@@ -659,7 +659,7 @@ $fragment = [ordered]@{
     name = "TeX isolation and resource limits"
     status = $overallStatus
     startedAt = $startedAt
-    finishedAt = [DateTime]::UtcNow.ToString("o")
+    finishedAt = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
     evidence = $evidence
 }
 if ($overallStatus -ne "passed") {

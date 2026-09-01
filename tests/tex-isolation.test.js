@@ -22,6 +22,28 @@ function texIsolationDefinition() {
   });
 }
 
+test("native TeX preflight emits a fragment accepted by the aggregate evidence schema", {
+  skip: process.platform !== "win32", timeout: 120000
+}, function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-tex-preflight-"));
+  t.after(function () { fs.rmSync(workspace, { recursive: true, force: true }); });
+  var result = childProcess.spawnSync(process.env.FORMULABRIDGE_PWSH || "pwsh", [
+    "-NoProfile", "-File", path.join(projectRoot, "tools/test-tex-isolation.ps1"),
+    "-EnginePath", path.join(workspace, "missing", "lualatex.exe"),
+    "-TexRoot", path.join(workspace, "missing"),
+    "-ExpectedEngineSha256", "0".repeat(64), "-ExpectedCommit", "0".repeat(40),
+    "-EvidenceDirectory", path.join(workspace, "evidence")
+  ], { cwd: projectRoot, encoding: "utf8", windowsHide: true, timeout: 100000 });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1, result.stderr);
+  var fragment = JSON.parse(fs.readFileSync(path.join(workspace, "evidence/check-fragment.json"), "utf8"));
+  assert.equal(fragment.status, "blocked");
+  var Ajv = require("ajv/dist/2020");
+  var schema = require("../schemas/phase0-run.schema.json");
+  var validator = new Ajv().addSchema(schema).getSchema(schema.$id + "#/$defs/check");
+  assert.equal(validator(fragment), true, JSON.stringify(validator.errors));
+});
+
 function runSandboxRequest(t, overrides) {
   var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-tex-request-"));
   var texRoot = path.join(workspace, "tex");

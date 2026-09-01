@@ -346,6 +346,9 @@ test("real Word ordinary clipboard automation preserves source and reconciles id
   var fragment = JSON.parse(fs.readFileSync(fragmentPath, "utf8"));
 
   assert.equal(fragment.status, "passed");
+  var timestamp = new RegExp(require("../schemas/phase0-run.schema.json").$defs.timestamp.pattern);
+  assert.match(fragment.startedAt, timestamp);
+  assert.match(fragment.finishedAt, timestamp);
   assert.deepEqual(
     fragment.evidence.map(function (item) { return item.kind; }),
     ["result", "log", "docx-package", "word-automation"]

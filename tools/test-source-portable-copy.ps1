@@ -36,7 +36,7 @@ $requiredAssertions = @(
     "save-reopen-preserves-source",
     "package-and-word-automation"
 )
-$startedAt = [DateTime]::UtcNow.ToString("o")
+$startedAt = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 $currentAssertion = $requiredAssertions[0]
 $assertions = [ordered]@{}
 $logLines = [System.Collections.Generic.List[string]]::new()
@@ -959,7 +959,7 @@ finally {
         name = $checkName
         status = $status
         startedAt = $startedAt
-        finishedAt = [DateTime]::UtcNow.ToString("o")
+        finishedAt = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         evidence = $evidence.ToArray()
     }
     Write-Utf8File -Path $resolvedFragmentPath -Content (($fragment | ConvertTo-Json -Depth 6) + "`n")
