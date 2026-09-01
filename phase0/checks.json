@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.2.0",
+  "checkSetVersion": "1.3.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -64,6 +64,7 @@
       "id": "tex-isolation",
       "name": "TeX isolation and resource limits",
       "purpose": "Prove document TeX cannot escape controlled roots, access the network, or exceed resource and process limits.",
+      "provider": "tools/phase0-providers/tex-isolation.js",
       "requiredEvidenceKinds": ["result", "log"],
       "passedEvidenceKinds": ["security-trace", "resource-report"],
       "requiredAssertions": [

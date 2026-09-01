@@ -1,0 +1,12 @@
+% Synthetic adversarial input. The parent harness deliberately owns the named variable.
+% FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
+\documentclass{article}
+\directlua{
+  local candidate = os.getenv("FORMULABRIDGE_OUTSIDE_CANARY")
+  local handle = candidate and io.open(candidate, "rb") or nil
+  local result = assert(io.open("attack-result.txt", "wb"))
+  result:write((candidate or handle) and "escaped" or "blocked")
+  if handle then handle:close() end
+  result:close()
+}
+\begin{document}environment variable probe\end{document}

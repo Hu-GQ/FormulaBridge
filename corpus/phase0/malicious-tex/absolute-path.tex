@@ -1,11 +1,11 @@
-% Synthetic adversarial input. Never run outside the restricted RenderHost harness.
+% Synthetic adversarial input. The harness replaces the placeholder only in its random job directory.
 % FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
 \documentclass{article}
 \directlua{
-  local handle = io.open("../../outside-canary.txt", "rb")
+  local handle = io.open([[@@ABSOLUTE_CANARY@@]], "rb")
   local result = assert(io.open("attack-result.txt", "wb"))
   result:write(handle and "escaped" or "blocked")
   if handle then handle:close() end
   result:close()
 }
-\begin{document}path traversal probe\end{document}
+\begin{document}absolute path probe\end{document}

@@ -29,3 +29,5 @@ npm test
 [阶段 0 证据基线](docs/phase0-evidence.md)提供统一执行命令、版本化 schema、无隐私语料清单，以及机器可读 JSON 与人类可读 Markdown 报告。它建立 Issue #1 的提供者与证据契约；四项前置样机由各自 ticket 实现并注册，未注册检查保持 `not-run`，不能误报通过。
 
 [阶段 0 VSTO 安装样机](docs/vsto-installation-spike.md)实现 Issue #2 的最小 x64 Word VSTO Ribbon、当前用户 WiX 安装包、只读外部诊断、签名构建入口，以及 clean install、重复安装、repair、Word 自动加载和 uninstall 的证据 smoke runner。它不依赖或修改未提交的 `src/web/editor` UI 原型。
+
+[阶段 0 TeX 隔离样机](docs/tex-isolation-spike.md)实现 Issue #6 的 Windows 11 x64 AppContainer、Job Object、文件系统 ACL 和固定 TeX 策略验证，使用恶意 LuaLaTeX 语料证明文件、网络、进程与资源边界。隔离机制或环境不满足时只能生成 `blocked`/`failed` 证据，不能降级为不受控的本地 TeX。

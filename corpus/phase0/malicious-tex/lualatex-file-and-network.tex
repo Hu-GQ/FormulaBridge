@@ -1,0 +1,23 @@
+% Synthetic adversarial input. The harness injects only a loopback port, never a sensitive path.
+% FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
+\documentclass{article}
+\directlua{
+  local fileHandle = io.open([[@@ABSOLUTE_CANARY@@]], "rb")
+  local moduleOk, socket = pcall(require,"socket")
+  local connected = false
+  if moduleOk then
+    local client = socket.tcp()
+    client:settimeout(1)
+    connected = client:connect("127.0.0.1", @@LISTENER_PORT@@) and true or false
+    client:close()
+  end
+  local result = assert(io.open("attack-result.txt", "wb"))
+  if not moduleOk then
+    result:write("network-module-unavailable")
+  else
+    result:write((fileHandle or connected) and "escaped" or "blocked")
+  end
+  if fileHandle then fileHandle:close() end
+  result:close()
+}
+\begin{document}LuaLaTeX file and network probe\end{document}

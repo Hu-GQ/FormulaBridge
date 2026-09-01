@@ -4,7 +4,7 @@
 
 ## 统一入口
 
-执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装样机已经注册提供者；未配置签名 MSI 时明确记为 `blocked`。其余没有提供者的检查记为 `not-run`，使总门禁返回非零：
+执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装与 TeX 隔离样机已经注册提供者；未配置签名 MSI 或受支持的 TeX 环境时明确记为 `blocked`。没有提供者的检查记为 `not-run`，使总门禁返回非零：
 
 ```powershell
 npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase0-run\report
@@ -34,7 +34,7 @@ npm run phase0 -- run --input C:\phase0-run\run.json --output C:\phase0-run\repo
 
 ## 固定检查与证据
 
-[`phase0/checks.json`](../phase0/checks.json)固定 `1.2.0` 检查集、验收断言、提供者和运行时清单。运行输入必须按清单顺序恰好包含以下四项，不能省略、改名或用任意 sample 检查替代：
+[`phase0/checks.json`](../phase0/checks.json)固定当前检查集版本、验收断言、提供者和运行时清单。运行输入必须按清单顺序恰好包含以下四项，不能省略、改名或用任意 sample 检查替代：
 
 - VSTO 用户级安装、自动加载和外部诊断；
 - 源码可移植普通复制；
@@ -75,10 +75,11 @@ npm run phase0 -- validate-report --report C:\phase0-run\report\report.json
 
 ## 最小无隐私语料
 
-[`corpus/phase0/manifest.json`](../corpus/phase0/manifest.json)固定为合成、无个人数据的 `1.0.0` 语料，包含：
+[`corpus/phase0/manifest.json`](../corpus/phase0/manifest.json)固定为合成、无个人数据的版本化语料，包含：
 
 - 可由 Word 打开的最小 `.docx`，并保留可审计 OOXML 源文件；
 - 一个最小 LaTeX 公式 JSON；
-- 一个尝试读取受控根外 canary 的恶意 TeX 文件。
+- 一个可正常编译的最小 LuaLaTeX 输入；
+- 覆盖相对/绝对路径、环境变量、搜索路径、link/reparse point、LuaLaTeX 文件与网络、shell/进程、超时和输出洪泛的恶意 TeX 语料。
 
-这些文件只是阶段 0 runner 与后续样机共享的最小基线，不提前实现后续 ticket 的完整发布验证语料。
+这些文件只是阶段 0 runner 与样机共享的合成基线，不读取用户文档，也不提前实现后续 ticket 的完整发布验证语料。
