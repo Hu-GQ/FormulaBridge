@@ -197,6 +197,20 @@ test("the TeX sandbox rejects input above the immutable 256 KiB ceiling", { time
   });
 });
 
+test("the TeX sandbox accepts exactly 256 KiB past the input ceiling gate", { timeout: 120000 }, function (t) {
+  var result = runSandboxRequest(t, {
+    inputContent: "x".repeat(256 * 1024),
+    engineSha256: "0".repeat(64)
+  });
+
+  assert.equal(result.status, 2, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    schemaVersion: 1,
+    status: "rejected",
+    code: "engine-identity-mismatch"
+  });
+});
+
 test("the TeX sandbox rejects a batch item above its immutable 120 second ceiling", { timeout: 120000 }, function (t) {
   var result = runSandboxRequest(t, { mode: "batch-item", testWallClockSeconds: 121 });
 
@@ -356,8 +370,13 @@ test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilin
   assert.match(runner, /resource-output-bytes/);
   assert.match(runner, /resource-memory/);
   assert.match(runner, /input-ceiling-probe/);
+  assert.match(runner, /input-ceiling-benign.*ExactInputBytes \(\[int\]\$policy\.ceilings\.inputBytes\)/);
   assert.match(runner, /batch-ceiling-probe/);
   assert.match(runner, /batch-item/);
+  assert.match(runner, /describe-policy/);
+  assert.match(runner, /\$policy\.ceilings\.inputBytes/);
+  assert.match(runner, /ceilings = \$policy\.ceilings/);
+  assert.doesNotMatch(runner, /inputBytes = 262144/);
   assert.match(runner, /\$securityCases\) \+ @\(\$resourceCases/);
   assert.match(runner, /peakJobMemoryBytes/);
   assert.match(runner, /uncPathPattern/);
@@ -385,6 +404,8 @@ test("the TeX isolation spike documents repeatable build, smoke, evidence, and f
   assert.match(documentation, /不能.*passed/);
   assert.match(documentation, /Windows 运行库/);
   assert.match(documentation, /profile.*删除/is);
+  assert.match(documentation, /恰好 256 KiB.*可运行/);
+  assert.match(documentation, /超过 256 KiB.*被拒绝/);
   assert.match(decision, /AppContainer/);
   assert.match(decision, /零网络 capability/);
   assert.match(decision, /挂起.*Job Object.*恢复线程/s);

@@ -50,6 +50,7 @@ $policyCases = [Collections.Generic.List[object]]::new()
 $cleanupSucceeded = $false
 $preflightSucceeded = $false
 $mechanismReady = $false
+$policy = [pscustomobject]@{ ceilings = $null }
 $originalOutsideCanary = $env:FORMULABRIDGE_OUTSIDE_CANARY
 $originalTexInputs = $env:TEXINPUTS
 $assertionOrder = @(
@@ -138,13 +139,40 @@ function Get-CaseSource {
     return Get-Content -LiteralPath $sourcePath -Raw
 }
 
+function Write-TexInput {
+    param(
+        [string]$Path,
+        [string]$Source,
+        [int]$ExactInputBytes = 0
+    )
+
+    $encoding = [Text.UTF8Encoding]::new($false)
+    if ($ExactInputBytes -le 0) {
+        [IO.File]::WriteAllText($Path, $Source, $encoding)
+        return
+    }
+
+    $sourceBytes = $encoding.GetByteCount($Source)
+    $commentPrefix = "`n%"
+    $paddingBytes = $ExactInputBytes - $sourceBytes - $encoding.GetByteCount($commentPrefix)
+    if ($paddingBytes -lt 0) {
+        throw "The benign TeX source cannot fit the requested exact input size"
+    }
+
+    [IO.File]::WriteAllText($Path, $Source + $commentPrefix + ("x" * $paddingBytes), $encoding)
+    if ((Get-Item -LiteralPath $Path).Length -ne $ExactInputBytes) {
+        throw "The TeX input did not match the requested exact byte size"
+    }
+}
+
 function Invoke-TexCase {
     param(
         [string]$Id,
         [string]$CorpusPath,
-        [int]$WallClockSeconds = 30,
+        [int]$WallClockSeconds = 0,
         [ValidateSet("interactive", "batch-item")]
         [string]$Mode = "interactive",
+        [int]$ExactInputBytes = 0,
         [switch]$CreateTraversalCanary,
         [switch]$CreateOutsideLinks,
         [switch]$InjectAbsoluteCanary,
@@ -165,6 +193,9 @@ function Invoke-TexCase {
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     $jobDirectories.Add($caseRoot)
     $source = Get-CaseSource $CorpusPath
+    if ($WallClockSeconds -le 0) {
+        $WallClockSeconds = [int]$policy.ceilings.interactiveSeconds
+    }
 
     if ($CreateTraversalCanary) {
         Set-Content -LiteralPath (Join-Path $caseRoot "outside-canary.txt") -Value "FORMULABRIDGE-CANARY" -Encoding utf8NoBOM
@@ -199,7 +230,7 @@ function Invoke-TexCase {
         $source = $source.Replace("@@LISTENER_PORT@@", $listenerPort.ToString([Globalization.CultureInfo]::InvariantCulture))
     }
 
-    Set-Content -LiteralPath $inputPath -Value $source -Encoding utf8NoBOM
+    Write-TexInput -Path $inputPath -Source $source -ExactInputBytes $ExactInputBytes
     $request = [ordered]@{
         schemaVersion = 1
         enginePath = [IO.Path]::GetFullPath($EnginePath)
@@ -279,6 +310,7 @@ function Invoke-TexCase {
         aclRestored = $runner.aclRestored
         texAclExplicitlyGranted = $runner.texAclExplicitlyGranted
         peakJobMemoryBytes = $runner.peakJobMemoryBytes
+        inputBytes = (Get-Item -LiteralPath $inputPath).Length
         outsideWriteArtifact = $outsideWriteArtifact
     }
     if ($ResourceCase) {
@@ -311,12 +343,9 @@ function Invoke-PolicyRejection {
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     $jobDirectories.Add($caseRoot)
 
-    $source = if ($OversizedInput) {
-        "x" * ((256 * 1024) + 1)
-    } else {
-        Get-CaseSource "formula\benign-lualatex.tex"
-    }
-    Set-Content -LiteralPath $inputPath -Value $source -Encoding utf8NoBOM
+    $source = Get-CaseSource "formula\benign-lualatex.tex"
+    $exactInputBytes = if ($OversizedInput) { [int]$policy.ceilings.inputBytes + 1 } else { 0 }
+    Write-TexInput -Path $inputPath -Source $source -ExactInputBytes $exactInputBytes
     Write-EvidenceJson -Path $requestPath -Value ([ordered]@{
         schemaVersion = 1
         enginePath = [IO.Path]::GetFullPath($EnginePath)
@@ -360,6 +389,25 @@ Set-Content -LiteralPath $logPath -Value "" -Encoding utf8NoBOM
 Write-SmokeLog "Starting TeX isolation smoke"
 
 try {
+    & dotnet build $sandboxProject --configuration Release --nologo *> $null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $sandboxExecutable -PathType Leaf)) {
+        throw "The TeX sandbox helper did not build"
+    }
+    try {
+        $policy = (@(& $sandboxExecutable describe-policy 2>$null) -join [Environment]::NewLine) |
+            ConvertFrom-Json -Depth 10
+    }
+    catch {
+        throw "The TeX sandbox helper did not publish a valid policy"
+    }
+    if ($policy.schemaVersion -ne 1 -or $null -eq $policy.ceilings -or
+        @($policy.ceilings.inputBytes, $policy.ceilings.interactiveSeconds,
+            $policy.ceilings.batchItemSeconds, $policy.ceilings.memoryBytes,
+            $policy.ceilings.outputFiles, $policy.ceilings.outputBytes,
+            $policy.ceilings.activeProcesses | Where-Object { [long]$_ -le 0 }).Count -gt 0) {
+        throw "The TeX sandbox helper published an incomplete policy"
+    }
+
     if (-not $IsWindows) {
         throw "The TeX isolation smoke requires Windows"
     }
@@ -390,10 +438,6 @@ try {
     $env:FORMULABRIDGE_OUTSIDE_CANARY = $canaryPath
     $env:TEXINPUTS = $outsideRoot + [IO.Path]::PathSeparator
 
-    & dotnet build $sandboxProject --configuration Release --nologo *> $null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $sandboxExecutable -PathType Leaf)) {
-        throw "The TeX sandbox helper did not build"
-    }
     $preflightSucceeded = $true
     Write-SmokeLog "Preflight and sandbox helper build succeeded"
 
@@ -424,9 +468,10 @@ try {
         $resourceOutputFiles = Invoke-TexCase -Id "resource-output-files" -CorpusPath "malicious-tex\resource-output.tex" -ResourceCase
         $resourceOutputBytes = Invoke-TexCase -Id "resource-output-bytes" -CorpusPath "malicious-tex\resource-output-bytes.tex" -ResourceCase
         $resourceMemory = Invoke-TexCase -Id "resource-memory" -CorpusPath "malicious-tex\resource-memory.tex" -ResourceCase
-        $batchBenign = Invoke-TexCase -Id "batch-benign" -CorpusPath "formula\benign-lualatex.tex" -Mode "batch-item" -WallClockSeconds 120 -ResourceCase
-        $inputCeilingProbe = Invoke-PolicyRejection -Id "input-ceiling-probe" -Mode "interactive" -WallClockSeconds 30 -OversizedInput
-        $batchCeilingProbe = Invoke-PolicyRejection -Id "batch-ceiling-probe" -Mode "batch-item" -WallClockSeconds 121
+        $inputCeilingBenign = Invoke-TexCase -Id "input-ceiling-benign" -CorpusPath "formula\benign-lualatex.tex" -ExactInputBytes ([int]$policy.ceilings.inputBytes) -ResourceCase
+        $batchBenign = Invoke-TexCase -Id "batch-benign" -CorpusPath "formula\benign-lualatex.tex" -Mode "batch-item" -WallClockSeconds ([int]$policy.ceilings.batchItemSeconds) -ResourceCase
+        $inputCeilingProbe = Invoke-PolicyRejection -Id "input-ceiling-probe" -Mode "interactive" -WallClockSeconds ([int]$policy.ceilings.interactiveSeconds) -OversizedInput
+        $batchCeilingProbe = Invoke-PolicyRejection -Id "batch-ceiling-probe" -Mode "batch-item" -WallClockSeconds ([int]$policy.ceilings.batchItemSeconds + 1)
 
         $filesystemCases = @($pathTraversal, $absolutePath, $writeOutside, $environmentVariable, $searchPath, $linkReparse)
         if (@($filesystemCases | Where-Object {
@@ -461,7 +506,10 @@ try {
             $resourceMemory.texExitCode -ne 0 -and -not $resourceMemory.timedOut -and
             $resourceMemory.peakJobMemoryBytes -ge [long]($memoryLimit / 2) -and
             $resourceMemory.peakJobMemoryBytes -le $memoryLimit
-        $requestCeilingsObserved = $batchBenign.runnerStatus -eq "completed" -and
+        $requestCeilingsObserved = $inputCeilingBenign.runnerStatus -eq "completed" -and
+            $inputCeilingBenign.texExitCode -eq 0 -and $inputCeilingBenign.producedPdf -and
+            $inputCeilingBenign.inputBytes -eq [long]$policy.ceilings.inputBytes -and
+            $batchBenign.runnerStatus -eq "completed" -and
             $batchBenign.texExitCode -eq 0 -and $batchBenign.producedPdf -and
             $inputCeilingProbe.runnerStatus -eq "rejected" -and
             $inputCeilingProbe.runnerCode -eq "input-ceiling-exceeded" -and
@@ -529,15 +577,7 @@ $securityTrace = [ordered]@{
 }
 $resourceReport = [ordered]@{
     schemaVersion = 1
-    ceilings = [ordered]@{
-        inputBytes = 262144
-        interactiveSeconds = 30
-        batchItemSeconds = 120
-        memoryBytes = 1073741824
-        outputFiles = 64
-        outputBytes = 67108864
-        activeProcesses = 1
-    }
+    ceilings = $policy.ceilings
     cases = @($resourceCases)
     policyCases = @($policyCases)
 }
