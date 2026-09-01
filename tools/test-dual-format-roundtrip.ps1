@@ -17,22 +17,21 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $resolvedEvidenceDirectory = [IO.Path]::GetFullPath($EvidenceDirectory)
 $checkId = "dual-format-roundtrip"
-$checkName = "SVG and PNG Word round trip"
+$checkDefinition = (Get-Content -LiteralPath (Join-Path $projectRoot "phase0/checks.json") -Raw | ConvertFrom-Json).checks |
+    Where-Object { $_.id -eq $checkId }
+$checkName = $checkDefinition.name
 $startedAt = [DateTime]::UtcNow
-$requiredAssertionIds = @(
-    "self-contained-svg-png",
-    "save-reopen-roundtrip",
-    "same-document-copy",
-    "cross-document-copy",
-    "print-and-pdf-output",
-    "works-without-formulabridge"
-)
+$requiredAssertionIds = @($checkDefinition.requiredAssertions)
+$script:visualTolerances = [ordered]@{
+    maximumMeanAbsoluteError = 0.35
+    maximumAspectRatioDelta = 0.35
+    maximumInkRatioDelta = 0.70
+}
 $script:assertionById = [ordered]@{}
 $script:currentAssertionId = $requiredAssertionIds[0]
 $script:preflight = $true
 $script:word = $null
 $script:anchorDocument = $null
-$script:openDocuments = @()
 $script:capturePrinterName = $null
 $script:capturePortName = $null
 $script:capturePrinterCreated = $false
@@ -259,6 +258,9 @@ function Assert-DualFormatPackage {
     if ($Inspection.svgMediaParts -lt 1 -or $Inspection.pngMediaParts -lt 1) {
         throw "$Description lost an SVG or PNG media part."
     }
+    if ($Inspection.mismatchedPngFallbacks -ne 0) {
+        throw "$Description contains a PNG fallback that differs from the verified local TeX render."
+    }
     if (
         $Inspection.svgBlipReferences -ne $ExpectedReferences -or
         $Inspection.pngFallbackReferences -ne $ExpectedReferences
@@ -408,8 +410,7 @@ function Invoke-PdfRender {
 
 function Get-InkBounds {
     param(
-        [Drawing.Bitmap]$Bitmap,
-        [switch]$UseAlpha
+        [Drawing.Bitmap]$Bitmap
     )
 
     $minimumX = $Bitmap.Width
@@ -420,12 +421,7 @@ function Get-InkBounds {
     for ($y = 0; $y -lt $Bitmap.Height; $y += 1) {
         for ($x = 0; $x -lt $Bitmap.Width; $x += 1) {
             $pixel = $Bitmap.GetPixel($x, $y)
-            $isInk = if ($UseAlpha) {
-                $pixel.A -gt 32
-            }
-            else {
-                (($pixel.R + $pixel.G + $pixel.B) / 3) -lt 245
-            }
+            $isInk = $pixel.A -gt 32 -and (($pixel.R + $pixel.G + $pixel.B) / 3) -lt 245
             if ($isInk) {
                 $minimumX = [Math]::Min($minimumX, $x)
                 $minimumY = [Math]::Min($minimumY, $y)
@@ -470,12 +466,14 @@ function Compare-FormulaVisual {
         [string]$Description
     )
 
-    $reference = [Drawing.Bitmap]::FromFile($ReferencePath)
-    $rendered = [Drawing.Bitmap]::FromFile($RenderedPath)
+    $reference = $null
+    $rendered = $null
     $normalizedReference = $null
     $normalizedRendered = $null
     try {
-        $referenceBounds = Get-InkBounds $reference -UseAlpha
+        $reference = [Drawing.Bitmap]::FromFile($ReferencePath)
+        $rendered = [Drawing.Bitmap]::FromFile($RenderedPath)
+        $referenceBounds = Get-InkBounds $reference
         $renderedBounds = Get-InkBounds $rendered
         $normalizedReference = New-NormalizedBitmap $reference $referenceBounds
         $normalizedRendered = New-NormalizedBitmap $rendered $renderedBounds
@@ -503,17 +501,12 @@ function Compare-FormulaVisual {
         $aspectRatioDelta = [Math]::Abs($referenceAspect - $renderedAspect) / $referenceAspect
         $inkRatioDelta = [Math]::Abs($referenceInk - $renderedInk) / [double][Math]::Max(1, $referenceInk)
 
-        if ($meanAbsoluteError -gt 0.35) {
-            throw "$Description exceeds the normalized mean-absolute-error tolerance."
-        }
-        if ($aspectRatioDelta -gt 0.35) {
-            throw "$Description exceeds the aspect-ratio tolerance."
-        }
-        if ($inkRatioDelta -gt 0.70) {
-            throw "$Description exceeds the visible-ink tolerance."
-        }
+        $passed = $meanAbsoluteError -le $script:visualTolerances.maximumMeanAbsoluteError -and
+            $aspectRatioDelta -le $script:visualTolerances.maximumAspectRatioDelta -and
+            $inkRatioDelta -le $script:visualTolerances.maximumInkRatioDelta
 
         return [ordered]@{
+            passed = $passed
             renderedWidth = $rendered.Width
             renderedHeight = $rendered.Height
             inkBounds = [ordered]@{
@@ -527,11 +520,17 @@ function Compare-FormulaVisual {
             inkRatioDelta = [Math]::Round($inkRatioDelta, 6)
         }
     }
+    catch {
+        return [ordered]@{
+            passed = $false
+            reason = Protect-EvidenceText ("$Description failed visual inspection: " + $_.Exception.Message)
+        }
+    }
     finally {
         if ($null -ne $normalizedReference) { $normalizedReference.Dispose() }
         if ($null -ne $normalizedRendered) { $normalizedRendered.Dispose() }
-        $reference.Dispose()
-        $rendered.Dispose()
+        if ($null -ne $reference) { $reference.Dispose() }
+        if ($null -ne $rendered) { $rendered.Dispose() }
     }
 }
 
@@ -660,8 +659,11 @@ try {
 
     $script:currentAssertionId = "cross-document-copy"
     $document = $script:word.Documents.Open($roundtripDocumentPath, $false, $false)
-    (Get-InlineShape $document 1).Range.Copy()
     $targetDocument = $script:word.Documents.Add()
+    $document.Activate()
+    (Get-InlineShape $document 1).Range.Copy()
+    $targetDocument.Activate()
+    Start-Sleep -Milliseconds 250
     $targetRange = $targetDocument.Range(0, 0)
     $targetRange.Paste()
     if ((Get-InlineShapeCount $targetDocument) -ne 1) {
@@ -743,14 +745,13 @@ try {
             width = 160
             height = 50
         }
-        tolerances = [ordered]@{
-            maximumMeanAbsoluteError = 0.35
-            maximumAspectRatioDelta = 0.35
-            maximumInkRatioDelta = 0.70
-        }
+        tolerances = $script:visualTolerances
         export = $exportVisual
         print = $printVisual
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $visualPath -Encoding utf8
+    if (-not $exportVisual.passed -or -not $printVisual.passed) {
+        throw "Word output failed the tolerance-based visual check; diagnostic metrics were retained."
+    }
 
     Set-Assertion "print-and-pdf-output" "passed"
     Write-SmokeLog "Word print and PDF export passed structure and tolerance-based visual checks."
@@ -759,7 +760,6 @@ try {
     Set-Assertion "works-without-formulabridge" "passed"
     Write-SmokeLog "All Word operations completed with FormulaBridge absent or disconnected."
 
-    Compress-Archive -Path (Join-Path $documentEvidenceDirectory "*") -DestinationPath $docxPackagePath
 }
 catch {
     $failureReason = $_.Exception.Message
@@ -770,13 +770,11 @@ catch {
         Set-Assertion $script:currentAssertionId "failed" ("The smoke failed with " + (Get-SafeErrorType $_) + ".")
     }
     Write-SmokeLog ("Smoke stopped: " + (Get-SafeErrorType $_) + ": " + $failureReason)
+    Write-SmokeLog ("Failure HRESULT: 0x{0:X8}" -f $_.Exception.HResult)
     Write-SmokeLog ("Failure line: " + $_.InvocationInfo.ScriptLineNumber)
     Write-SmokeLog ("Stack: " + $_.ScriptStackTrace)
 }
 finally {
-    foreach ($openDocument in $script:openDocuments) {
-        Close-WordDocument $openDocument
-    }
     if ($null -ne $script:anchorDocument) {
         Close-WordDocument $script:anchorDocument
         $script:anchorDocument = $null
@@ -802,18 +800,36 @@ finally {
         $script:capturePrinterCreated = $false
     }
     if ($script:capturePortCreated) {
-        try {
-            Remove-PrinterPort -Name $script:capturePortName -ErrorAction Stop
+        for ($cleanupAttempt = 0; $cleanupAttempt -lt 20; $cleanupAttempt += 1) {
+            try {
+                Remove-PrinterPort -Name $script:capturePortName -ErrorAction Stop
+                $script:capturePortCreated = $false
+                break
+            }
+            catch {
+                if ($cleanupAttempt -eq 19) {
+                    $failureReason = "The temporary print capture port could not be removed."
+                    Set-Assertion "print-and-pdf-output" "failed" $failureReason
+                    Write-SmokeLog ("Temporary capture port cleanup failed with " + (Get-SafeErrorType $_) + ".")
+                }
+                else {
+                    Start-Sleep -Milliseconds 500
+                }
+            }
         }
-        catch {
-            $failureReason = "The temporary print capture port could not be removed."
-            Set-Assertion "print-and-pdf-output" "failed" $failureReason
-            Write-SmokeLog ("Temporary capture port cleanup failed with " + (Get-SafeErrorType $_) + ".")
-        }
-        $script:capturePortCreated = $false
     }
     [GC]::Collect()
     [GC]::WaitForPendingFinalizers()
+}
+
+try {
+    if (Get-ChildItem -LiteralPath $workDirectory -Recurse -File | Select-Object -First 1) {
+        Compress-Archive -Path (Join-Path $workDirectory "*") -DestinationPath $docxPackagePath
+    }
+}
+catch {
+    Set-Assertion "print-and-pdf-output" "failed" "The reproduction evidence could not be archived."
+    Write-SmokeLog ("Evidence archival failed with " + (Get-SafeErrorType $_) + ".")
 }
 
 $overallStatus = Get-OverallStatus
@@ -829,11 +845,16 @@ $evidence = @(
     [ordered]@{ path = $resultRelativePath; kind = "result" },
     [ordered]@{ path = $logRelativePath; kind = "log" }
 )
-if ($overallStatus -eq "passed") {
-    $evidence += [ordered]@{ path = $docxPackageRelativePath; kind = "docx-package" }
-    $evidence += [ordered]@{ path = $pdfRelativePath; kind = "pdf" }
-    $evidence += [ordered]@{ path = $printRelativePath; kind = "print-output" }
-    $evidence += [ordered]@{ path = $visualRelativePath; kind = "visual-diff" }
+foreach ($artifact in @(
+    @{ path = $docxPackageRelativePath; kind = "docx-package" },
+    @{ path = $pdfRelativePath; kind = "pdf" },
+    @{ path = $printRelativePath; kind = "print-output" },
+    @{ path = $visualRelativePath; kind = "visual-diff" }
+)) {
+    $artifactPath = Resolve-EvidencePath $artifact.path
+    if ((Test-Path -LiteralPath $artifactPath) -and (Get-Item -LiteralPath $artifactPath).Length -gt 0) {
+        $evidence += [ordered]@{ path = $artifact.path; kind = $artifact.kind }
+    }
 }
 
 $fragment = [ordered]@{

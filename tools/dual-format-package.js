@@ -4,7 +4,7 @@
 var fs = require("node:fs");
 var path = require("node:path");
 var zlib = require("node:zlib");
-var formulaTeX = "x^2 + y^2 = z^2";
+var crypto = require("node:crypto");
 
 var crcTable = Array.from({ length: 256 }, function (_, index) {
   var value = index;
@@ -140,109 +140,35 @@ function readZip(filePath) {
   return entries;
 }
 
-var glyphs = {
-  x: ["10001", "01010", "00100", "00100", "01010", "10001", "00000"],
-  y: ["10001", "01010", "00100", "00100", "00100", "00100", "00000"],
-  z: ["11111", "00010", "00100", "01000", "10000", "11111", "00000"],
-  "2": ["11110", "00001", "00001", "11110", "10000", "10000", "11111"],
-  "+": ["00100", "00100", "00100", "11111", "00100", "00100", "00100"],
-  "=": ["00000", "11111", "00000", "11111", "00000", "00000", "00000"]
-};
-
-function addGlyph(rectangles, glyph, x, y, cell) {
-  glyphs[glyph].forEach(function (row, rowIndex) {
-    Array.from(row).forEach(function (pixel, columnIndex) {
-      if (pixel === "1") {
-        rectangles.push({ x: x + columnIndex * cell, y: y + rowIndex * cell, size: cell });
-      }
-    });
-  });
+function sha256(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
-function formulaRectangles() {
-  var rectangles = [];
-  addGlyph(rectangles, "x", 12, 38, 6);
-  addGlyph(rectangles, "2", 46, 12, 4);
-  addGlyph(rectangles, "+", 78, 38, 6);
-  addGlyph(rectangles, "y", 126, 38, 6);
-  addGlyph(rectangles, "2", 160, 12, 4);
-  addGlyph(rectangles, "=", 192, 38, 6);
-  addGlyph(rectangles, "z", 240, 38, 6);
-  addGlyph(rectangles, "2", 274, 12, 4);
-  return rectangles;
-}
-
-function createSvg(rectangles) {
-  var pathData = rectangles.map(function (rectangle) {
-    return "M" + rectangle.x + " " + rectangle.y + "h" + rectangle.size + "v" + rectangle.size + "h-" + rectangle.size + "z";
-  }).join("");
-
-  return [
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 320 100\" role=\"img\" aria-label=\"x squared plus y squared equals z squared\">",
-    "<path fill=\"#111827\" d=\"" + pathData + "\"/>",
-    "</svg>"
-  ].join("");
-}
-
-function pngChunk(type, data) {
-  var typeBuffer = Buffer.from(type, "ascii");
-  var chunk = Buffer.alloc(12 + data.length);
-  chunk.writeUInt32BE(data.length, 0);
-  typeBuffer.copy(chunk, 4);
-  data.copy(chunk, 8);
-  chunk.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 8 + data.length);
-  return chunk;
-}
-
-function createPng(rectangles) {
-  var width = 320;
-  var height = 100;
-  var rowLength = width * 4 + 1;
-  var pixels = Buffer.alloc(rowLength * height);
-
-  for (var row = 0; row < height; row += 1) {
-    pixels[row * rowLength] = 0;
-  }
-
-  rectangles.forEach(function (rectangle) {
-    for (var y = rectangle.y; y < rectangle.y + rectangle.size; y += 1) {
-      for (var x = rectangle.x; x < rectangle.x + rectangle.size; x += 1) {
-        var offset = y * rowLength + 1 + x * 4;
-        pixels[offset] = 17;
-        pixels[offset + 1] = 24;
-        pixels[offset + 2] = 39;
-        pixels[offset + 3] = 255;
-      }
+function loadFixture() {
+  var fixtureDirectory = path.join(__dirname, "..", "tests", "fixtures", "dual-format");
+  var manifest = JSON.parse(fs.readFileSync(path.join(fixtureDirectory, "manifest.json"), "utf8"));
+  var files = new Map();
+  ["formula.tex", "formula.svg", "formula.png"].forEach(function (name) {
+    var entry = manifest.entries.find(function (item) { return item.path === name; });
+    var data = fs.readFileSync(path.join(fixtureDirectory, name));
+    if (!entry || sha256(data) !== entry.sha256) {
+      throw new Error("The local TeX fixture hash does not match: " + name);
     }
+    files.set(name, data);
   });
-
-  var header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header[8] = 8;
-  header[9] = 6;
-  header[10] = 0;
-  header[11] = 0;
-  header[12] = 0;
-
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    pngChunk("IHDR", header),
-    pngChunk("IDAT", zlib.deflateSync(pixels, { level: 9 })),
-    pngChunk("IEND", Buffer.alloc(0))
-  ]);
+  return { manifest: manifest, files: files };
 }
 
-function documentXml() {
+function documentXml(dimensions) {
+  var heightEmu = Math.round(3048000 * dimensions.height / dimensions.width);
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="3048000" cy="952500"/><wp:docPr id="1" name="FormulaBridge dual-format formula" descr="x squared plus y squared equals z squared"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="formula.svg" descr="x squared plus y squared equals z squared"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdPng"><a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip r:embed="rIdSvg"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3048000" cy="952500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main"><w:body><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="3048000" cy="${heightEmu}"/><wp:docPr id="1" name="FormulaBridge dual-format formula" descr="x squared plus y squared equals z squared"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="formula.svg" descr="x squared plus y squared equals z squared"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdPng"><a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip r:embed="rIdSvg"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3048000" cy="${heightEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
 }
 
 function createDocument(outputPath, assetsDirectory) {
-  var rectangles = formulaRectangles();
-  var svg = createSvg(rectangles);
-  var png = createPng(rectangles);
+  var fixture = loadFixture();
+  var svg = fixture.files.get("formula.svg");
+  var png = fixture.files.get("formula.png");
   var entries = [
     {
       name: "[Content_Types].xml",
@@ -252,7 +178,7 @@ function createDocument(outputPath, assetsDirectory) {
       name: "_rels/.rels",
       data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`
     },
-    { name: "word/document.xml", data: documentXml() },
+    { name: "word/document.xml", data: documentXml(fixture.manifest.svgDimensions) },
     {
       name: "word/_rels/document.xml.rels",
       data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdPng" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/formula.png"/><Relationship Id="rIdSvg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/formula.svg"/></Relationships>`
@@ -266,7 +192,8 @@ function createDocument(outputPath, assetsDirectory) {
 
   if (assetsDirectory) {
     fs.mkdirSync(assetsDirectory, { recursive: true });
-    fs.writeFileSync(path.join(assetsDirectory, "formula.tex"), formulaTeX + "\n");
+    fs.writeFileSync(path.join(assetsDirectory, "formula.tex"), fixture.files.get("formula.tex"));
+    fs.writeFileSync(path.join(assetsDirectory, "manifest.json"), JSON.stringify(fixture.manifest, null, 2) + "\n");
     fs.writeFileSync(path.join(assetsDirectory, "formula.svg"), svg);
     fs.writeFileSync(path.join(assetsDirectory, "formula.png"), png);
   }
@@ -286,6 +213,7 @@ function imageReferenceIds(document, expression) {
 }
 
 function inspectDocument(inputPath) {
+  var fixture = loadFixture();
   var entries = readZip(inputPath);
   var document = (entries.get("word/document.xml") || Buffer.alloc(0)).toString("utf8");
   var relationships = (entries.get("word/_rels/document.xml.rels") || Buffer.alloc(0)).toString("utf8");
@@ -325,6 +253,9 @@ function inspectDocument(inputPath) {
     pngMediaParts: pngEntries.length,
     svgBlipReferences: svgReferenceIds.length,
     pngFallbackReferences: pngReferenceIds.length,
+    mismatchedPngFallbacks: pngEntries.filter(function (name) {
+      return sha256(entries.get(name)) !== sha256(fixture.files.get("formula.png"));
+    }).length,
     externalImageRelationships: imageRelationships.filter(function (relationship) {
       return /\bTargetMode="External"/i.test(relationship);
     }).length,

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "fixtureVersion": "1.0.0",
+  "formula": "x^2 + y^2 = z^2",
+  "provenance": {
+    "kind": "local-tex-render",
+    "engine": "pdfTeX 3.141592653-2.6-1.40.26 (TeX Live 2024)",
+    "svgConverter": "dvisvgm 3.2.2",
+    "pngConverter": "pdftoppm version 26.05.0",
+    "source": "formula.tex",
+    "shellEscape": false,
+    "commands": [
+      "latex -no-shell-escape -interaction=nonstopmode -halt-on-error formula.tex",
+      "pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error formula.tex",
+      "dvisvgm --no-fonts --bbox=papersize --output=formula.svg formula.dvi",
+      "pdftoppm -png -singlefile -r 288 formula.pdf formula"
+    ]
+  },
+  "svgDimensions": {
+    "width": 58.860194,
+    "height": 14.529983
+  },
+  "entries": [
+    {
+      "path": "formula.tex",
+      "sha256": "f4ac7f62517e360f0ffeff410b8ba35500c11e63260b5bd4472bc2ebc7169e0d"
+    },
+    {
+      "path": "formula.svg",
+      "sha256": "5c0877cbcbf764bce61d723902b54f692ca9159a4406bdad17b985118e4cda34"
+    },
+    {
+      "path": "formula.png",
+      "sha256": "526a5200d2f84cdec66e2528ecabdd194a63568c9e7e9517fc9989ba9d19db24"
+    }
+  ]
+}

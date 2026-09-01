@@ -9,7 +9,8 @@
     "phase0": "node tools/phase0-evidence.js",
     "vsto:build": "pwsh -NoProfile -File tools/build-vsto-installation.ps1",
     "vsto:smoke": "pwsh -NoProfile -File tools/test-vsto-installation.ps1",
-    "dual-format:smoke": "pwsh -NoProfile -File tools/test-dual-format-roundtrip.ps1"
+    "dual-format:smoke": "pwsh -NoProfile -File tools/test-dual-format-roundtrip.ps1",
+    "dual-format:fixture": "pwsh -NoProfile -File tools/build-dual-format-fixture.ps1"
   },
   "engines": {
     "node": ">=20"
