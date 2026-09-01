@@ -4,7 +4,7 @@
 \immediate\write18{cmd.exe /d /c echo escaped>shell-escape.txt}
 \directlua{
   local first, second, third = os.execute("cmd.exe /d /c echo escaped>process-escape.txt")
-  local launched = first == true or first == 0 or second == "exit" or third == 0
+  local launched = first == true or first == 0 or third == 0
   local result = assert(io.open("attack-result.txt", "wb"))
   result:write(launched and "escaped" or "blocked")
   result:close()

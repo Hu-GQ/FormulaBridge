@@ -2,10 +2,12 @@
 % FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
 \documentclass{article}
 \directlua{
-  local handle = io.open("links/outside/outside-canary.txt", "rb")
+  local junctionHandle = io.open("links/outside/outside-canary.txt", "rb")
+  local symbolicHandle = io.open("links/outside-canary-symbolic.txt", "rb")
   local result = assert(io.open("attack-result.txt", "wb"))
-  result:write(handle and "escaped" or "blocked")
-  if handle then handle:close() end
+  result:write((junctionHandle or symbolicHandle) and "escaped" or "blocked")
+  if junctionHandle then junctionHandle:close() end
+  if symbolicHandle then symbolicHandle:close() end
   result:close()
 }
 \begin{document}link and reparse point probe\end{document}

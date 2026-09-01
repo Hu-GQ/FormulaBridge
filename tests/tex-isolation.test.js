@@ -299,13 +299,16 @@ test("the versioned malicious TeX corpus covers every filesystem and LuaLaTeX ne
   assert.deepEqual(attackIds, [
     "malicious-tex.path-traversal",
     "malicious-tex.absolute-path",
+    "malicious-tex.write-outside",
     "malicious-tex.environment-variable",
     "malicious-tex.search-path",
     "malicious-tex.link-and-reparse-point",
     "malicious-tex.lualatex-file-and-network",
     "malicious-tex.shell-and-process",
     "malicious-tex.resource-exhaustion",
-    "malicious-tex.resource-output"
+    "malicious-tex.resource-output",
+    "malicious-tex.resource-output-bytes",
+    "malicious-tex.resource-memory"
   ]);
 
   maliciousEntries.forEach(function (entry) {
@@ -317,6 +320,21 @@ test("the versioned malicious TeX corpus covers every filesystem and LuaLaTeX ne
 
   assert.match(read("corpus/phase0/malicious-tex/lualatex-file-and-network.tex"), /require,\s*["']socket["']/);
   assert.match(read("corpus/phase0/malicious-tex/resource-output.tex"), /os\.clock/);
+  assert.match(read("corpus/phase0/malicious-tex/resource-output-bytes.tex"), /64 \* 1024 \* 1024/);
+  assert.match(read("corpus/phase0/malicious-tex/resource-memory.tex"), /string\.rep/);
+  assert.doesNotMatch(read("corpus/phase0/malicious-tex/shell-and-process.tex"), /second\s*==\s*["']exit["']/);
+});
+
+test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilings, and UNC evidence", function () {
+  var runner = read("tools/test-tex-isolation.ps1");
+
+  assert.match(runner, /\$benign\.texAclExplicitlyGranted/);
+  assert.match(runner, /\$caseCleanupSucceeded.*profileDeleted.*aclRestored/s);
+  assert.match(runner, /resource-output-bytes/);
+  assert.match(runner, /resource-memory/);
+  assert.match(runner, /peakJobMemoryBytes/);
+  assert.match(runner, /uncPathPattern/);
+  assert.match(runner, /SymbolicLink/);
 });
 
 test("the TeX isolation spike documents repeatable build, smoke, evidence, and fail-closed boundaries", function () {

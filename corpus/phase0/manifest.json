@@ -47,6 +47,14 @@
       "sha256": "9149b695f8251d194f7dddd069d55e80e9bcdbeadc3fe7198882cb75a0af167a"
     },
     {
+      "id": "malicious-tex.write-outside",
+      "category": "malicious-tex",
+      "path": "malicious-tex/write-outside.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to write outside the controlled output directory.",
+      "sha256": "5e1bbd1101d0b7cd63978dc2c7def7c8009db81f74009c4af88698b869327a07"
+    },
+    {
       "id": "malicious-tex.environment-variable",
       "category": "malicious-tex",
       "path": "malicious-tex/environment-variable.tex",
@@ -68,7 +76,7 @@
       "path": "malicious-tex/link-and-reparse-point.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX attempt to follow a task-root link or reparse point to an outside canary.",
-      "sha256": "3654c99dfbea31d9a6aa30680ad4232e785d9e281d1c3a00089c2b572b709b94"
+      "sha256": "f1d92cb19188d322cde8e532a8f62ea2af926c04bc529d902d74dc54c49a0211"
     },
     {
       "id": "malicious-tex.lualatex-file-and-network",
@@ -84,7 +92,7 @@
       "path": "malicious-tex/shell-and-process.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic TeX and Lua attempts to enable shell escape or create a child process.",
-      "sha256": "cf95084f5ab6770488462bceb0136a5a63df5b8bc3e5500b4de6c61a1036f5af"
+      "sha256": "6610f02482b5c6b3a5fb025403cacea8a89a9f8d2dc4cfc08160bcba422a2b40"
     },
     {
       "id": "malicious-tex.resource-exhaustion",
@@ -101,6 +109,22 @@
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output file-count ceiling.",
       "sha256": "8d5e8e86531f5629a7e4f4a69542c1e6807a9f3d24d037f564be3ac0030080e4"
+    },
+    {
+      "id": "malicious-tex.resource-output-bytes",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-output-bytes.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output byte ceiling.",
+      "sha256": "c557709d998fd0eaf1b569c9e7f1822d76ddb7368e2bdcabca10c749d6353514"
+    },
+    {
+      "id": "malicious-tex.resource-memory",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-memory.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX allocation loop used to prove the immutable Job Object memory ceiling.",
+      "sha256": "f1047f2d024fb3696353d1d8d2b9c51fc7dc1dd40d7e895a28570eec2df84bf2"
     }
   ]
 }

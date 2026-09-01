@@ -66,6 +66,9 @@ internal sealed class SandboxRunResult
     [JsonPropertyName("texAclExplicitlyGranted")]
     public bool TexAclExplicitlyGranted { get; init; }
 
+    [JsonPropertyName("peakJobMemoryBytes")]
+    public ulong? PeakJobMemoryBytes { get; init; }
+
     [JsonPropertyName("limits")]
     public required object Limits { get; init; }
 }
@@ -157,6 +160,7 @@ internal static class WindowsTexSandbox
         SecurityIdentifier? appContainerIdentity = null;
         var engineIdentityStable = false;
         var texAclExplicitlyGranted = false;
+        ulong? peakJobMemoryBytes = null;
 
         try
         {
@@ -375,13 +379,18 @@ internal static class WindowsTexSandbox
             {
                 exitCode = nativeExitCode;
             }
+
+            stage = "job-object-accounting";
+            peakJobMemoryBytes = GetPeakJobMemoryBytes(jobHandle);
         }
         catch (SandboxStageException error)
         {
+            status = "failed";
             code = error.Code;
         }
         catch (Exception error) when (error is Win32Exception or UnauthorizedAccessException or IOException)
         {
+            status = "failed";
             var nativeSuffix = error is Win32Exception nativeError
                 ? "-" + nativeError.NativeErrorCode.ToString("x8")
                 : string.Empty;
@@ -460,6 +469,7 @@ internal static class WindowsTexSandbox
                 ProfileDeleted = profileDeleted,
                 AclRestored = aclRestored,
                 TexAclExplicitlyGranted = texAclExplicitlyGranted,
+                PeakJobMemoryBytes = peakJobMemoryBytes,
                 Limits = LimitEvidence(configuration)
             };
         }
@@ -573,6 +583,33 @@ internal static class WindowsTexSandbox
         finally
         {
             Marshal.FreeHGlobal(uiRestrictionsPointer);
+            Marshal.FreeHGlobal(informationPointer);
+        }
+    }
+
+    private static ulong GetPeakJobMemoryBytes(IntPtr jobHandle)
+    {
+        var informationSize = Marshal.SizeOf<JobObjectExtendedLimitInformation>();
+        var informationPointer = Marshal.AllocHGlobal(informationSize);
+
+        try
+        {
+            if (!QueryInformationJobObject(
+                    jobHandle,
+                    JobObjectExtendedLimitInformationClass,
+                    informationPointer,
+                    (uint)informationSize,
+                    out _))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var information = Marshal.PtrToStructure<JobObjectExtendedLimitInformation>(
+                informationPointer);
+            return information.PeakJobMemoryUsed;
+        }
+        finally
+        {
             Marshal.FreeHGlobal(informationPointer);
         }
     }
@@ -874,6 +911,14 @@ internal static class WindowsTexSandbox
         int informationClass,
         IntPtr information,
         uint informationLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(
+        IntPtr job,
+        int informationClass,
+        IntPtr information,
+        uint informationLength,
+        out uint returnLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);

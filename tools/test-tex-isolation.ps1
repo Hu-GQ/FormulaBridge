@@ -40,6 +40,8 @@ $startedAt = [DateTime]::UtcNow.ToString("o")
 $workspace = Join-Path ([IO.Path]::GetTempPath()) ("formulabridge-tex-smoke-" + [Guid]::NewGuid().ToString("N"))
 $outsideRoot = Join-Path ([IO.Path]::GetTempPath()) ("formulabridge-tex-outside-" + [Guid]::NewGuid().ToString("N"))
 $canaryPath = Join-Path $outsideRoot "outside-canary.txt"
+$outsideWritePath = Join-Path $outsideRoot "escaped-write.txt"
+$uncPathPattern = '(?i)\\\\[^\\\r\n\s]+\\[^\r\n]+'
 $jobDirectories = [Collections.Generic.List[string]]::new()
 $reparseLinks = [Collections.Generic.List[string]]::new()
 $securityCases = [Collections.Generic.List[object]]::new()
@@ -98,6 +100,10 @@ function Write-SmokeLog {
         $Message,
         "(?i)[A-Z]:\\[^\r\n]+",
         "<redacted-path>")
+    $safeMessage = [Text.RegularExpressions.Regex]::Replace(
+        $safeMessage,
+        $uncPathPattern,
+        "<redacted-path>")
     $safeMessage = $safeMessage.Replace([Environment]::UserName, "<redacted-user>")
     Add-Content -LiteralPath $logPath -Value (([DateTime]::UtcNow.ToString("o")) + " " + $safeMessage) -Encoding utf8
 }
@@ -137,8 +143,9 @@ function Invoke-TexCase {
         [string]$CorpusPath,
         [int]$WallClockSeconds = 30,
         [switch]$CreateTraversalCanary,
-        [switch]$CreateOutsideLink,
+        [switch]$CreateOutsideLinks,
         [switch]$InjectAbsoluteCanary,
+        [switch]$InjectAbsoluteWrite,
         [switch]$InjectNetworkListener,
         [switch]$ResourceCase
     )
@@ -159,18 +166,27 @@ function Invoke-TexCase {
     if ($CreateTraversalCanary) {
         Set-Content -LiteralPath (Join-Path $caseRoot "outside-canary.txt") -Value "FORMULABRIDGE-CANARY" -Encoding utf8NoBOM
     }
-    if ($CreateOutsideLink) {
+    if ($CreateOutsideLinks) {
         $linksRoot = Join-Path $jobRoot "links"
-        $outsideLink = Join-Path $linksRoot "outside"
+        $outsideJunction = Join-Path $linksRoot "outside"
+        $outsideSymbolicLink = Join-Path $linksRoot "outside-canary-symbolic.txt"
         New-Item -ItemType Directory -Path $linksRoot -Force | Out-Null
-        New-Item -ItemType Junction -Path $outsideLink -Target $outsideRoot | Out-Null
-        $reparseLinks.Add($outsideLink)
+        New-Item -ItemType Junction -Path $outsideJunction -Target $outsideRoot | Out-Null
+        New-Item -ItemType SymbolicLink -Path $outsideSymbolicLink -Target $canaryPath | Out-Null
+        $reparseLinks.Add($outsideJunction)
+        $reparseLinks.Add($outsideSymbolicLink)
     }
     if ($InjectAbsoluteCanary) {
         if ($canaryPath.Contains("]]", [StringComparison]::Ordinal)) {
             throw "Generated canary path cannot be embedded safely"
         }
         $source = $source.Replace("@@ABSOLUTE_CANARY@@", $canaryPath)
+    }
+    if ($InjectAbsoluteWrite) {
+        if ($outsideWritePath.Contains("]]", [StringComparison]::Ordinal)) {
+            throw "Generated outside write path cannot be embedded safely"
+        }
+        $source = $source.Replace("@@ABSOLUTE_WRITE@@", $outsideWritePath)
     }
     if ($InjectNetworkListener) {
         $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -214,6 +230,7 @@ function Invoke-TexCase {
             profileDeleted = $false
             aclRestored = $false
             texAclExplicitlyGranted = $false
+            peakJobMemoryBytes = $null
             limits = $null
         }
     }
@@ -237,6 +254,8 @@ function Invoke-TexCase {
     $producedPdf = @(Get-ChildItem -LiteralPath $outputDirectory -Filter "*.pdf" -File -ErrorAction SilentlyContinue).Count -gt 0
     $shellArtifact = (Test-Path -LiteralPath (Join-Path $outputDirectory "shell-escape.txt")) -or
         (Test-Path -LiteralPath (Join-Path $outputDirectory "process-escape.txt"))
+    $outsideWriteArtifact = (Test-Path -LiteralPath (Join-Path $jobRoot "outside-write.txt")) -or
+        (Test-Path -LiteralPath $outsideWritePath)
 
     $caseEvidence = [ordered]@{
         id = $Id
@@ -256,6 +275,8 @@ function Invoke-TexCase {
         profileDeleted = $runner.profileDeleted
         aclRestored = $runner.aclRestored
         texAclExplicitlyGranted = $runner.texAclExplicitlyGranted
+        peakJobMemoryBytes = $runner.peakJobMemoryBytes
+        outsideWriteArtifact = $outsideWriteArtifact
     }
     if ($ResourceCase) {
         $caseEvidence.timedOut = $runner.timedOut
@@ -322,22 +343,28 @@ try {
         $benign.engineIdentityVerified -and
         $benign.engineIdentityStable -and
         $benign.profileDeleted -and
-        $benign.aclRestored
+        $benign.aclRestored -and
+        $benign.texAclExplicitlyGranted
 
     if ($mechanismReady) {
         Set-Assertion "approved-read-write-roots" "passed" ""
         $pathTraversal = Invoke-TexCase -Id "path-traversal" -CorpusPath "malicious-tex\path-traversal.tex" -CreateTraversalCanary
         $absolutePath = Invoke-TexCase -Id "absolute-path" -CorpusPath "malicious-tex\absolute-path.tex" -InjectAbsoluteCanary
+        $writeOutside = Invoke-TexCase -Id "write-outside" -CorpusPath "malicious-tex\write-outside.tex" -InjectAbsoluteWrite
         $environmentVariable = Invoke-TexCase -Id "environment-variable" -CorpusPath "malicious-tex\environment-variable.tex"
         $searchPath = Invoke-TexCase -Id "search-path" -CorpusPath "malicious-tex\search-path.tex"
-        $linkReparse = Invoke-TexCase -Id "link-reparse" -CorpusPath "malicious-tex\link-and-reparse-point.tex" -CreateOutsideLink
+        $linkReparse = Invoke-TexCase -Id "link-reparse" -CorpusPath "malicious-tex\link-and-reparse-point.tex" -CreateOutsideLinks
         $luaFileNetwork = Invoke-TexCase -Id "lualatex-file-network" -CorpusPath "malicious-tex\lualatex-file-and-network.tex" -InjectAbsoluteCanary -InjectNetworkListener
         $shellProcess = Invoke-TexCase -Id "shell-process" -CorpusPath "malicious-tex\shell-and-process.tex"
         $resourceTimeout = Invoke-TexCase -Id "resource-timeout" -CorpusPath "malicious-tex\resource-exhaustion.tex" -WallClockSeconds 2 -ResourceCase
-        $resourceOutput = Invoke-TexCase -Id "resource-output" -CorpusPath "malicious-tex\resource-output.tex" -ResourceCase
+        $resourceOutputFiles = Invoke-TexCase -Id "resource-output-files" -CorpusPath "malicious-tex\resource-output.tex" -ResourceCase
+        $resourceOutputBytes = Invoke-TexCase -Id "resource-output-bytes" -CorpusPath "malicious-tex\resource-output-bytes.tex" -ResourceCase
+        $resourceMemory = Invoke-TexCase -Id "resource-memory" -CorpusPath "malicious-tex\resource-memory.tex" -ResourceCase
 
-        $filesystemCases = @($pathTraversal, $absolutePath, $environmentVariable, $searchPath, $linkReparse)
-        if (@($filesystemCases | Where-Object { $_.runnerStatus -ne "completed" -or $_.marker -ne "blocked" }).Count -eq 0) {
+        $filesystemCases = @($pathTraversal, $absolutePath, $writeOutside, $environmentVariable, $searchPath, $linkReparse)
+        if (@($filesystemCases | Where-Object {
+            $_.runnerStatus -ne "completed" -or $_.marker -ne "blocked" -or $_.outsideWriteArtifact
+        }).Count -eq 0) {
             Set-Assertion "filesystem-escape-resistance" "passed" ""
         } else {
             Set-Assertion "filesystem-escape-resistance" "failed" "At least one filesystem escape probe was not blocked"
@@ -355,14 +382,22 @@ try {
         $immutableCases = @($securityCases)
         if (@($immutableCases | Where-Object {
             -not $_.engineIdentityVerified -or -not $_.engineIdentityStable -or
-            -not $_.assignedToJobBeforeResume -or $_.networkCapabilityCount -ne 0
+            -not $_.assignedToJobBeforeResume -or $_.networkCapabilityCount -ne 0 -or
+            -not $_.texAclExplicitlyGranted
         }).Count -eq 0 -and $shellProcess.marker -eq "blocked" -and -not $shellProcess.shellOrProcessArtifact) {
             Set-Assertion "immutable-executable-and-policy" "passed" ""
         } else {
             Set-Assertion "immutable-executable-and-policy" "failed" "An executable identity, fixed policy, shell, or child-process probe failed"
         }
+        $memoryLimit = [long]$resourceMemory.limits.memoryBytes
+        $memoryCeilingObserved = $resourceMemory.runnerStatus -eq "completed" -and
+            $resourceMemory.texExitCode -ne 0 -and -not $resourceMemory.timedOut -and
+            $resourceMemory.peakJobMemoryBytes -ge [long]($memoryLimit / 2) -and
+            $resourceMemory.peakJobMemoryBytes -le $memoryLimit
         if ($resourceTimeout.runnerStatus -eq "terminated" -and $resourceTimeout.timedOut -and
-            $resourceOutput.runnerStatus -eq "terminated" -and $resourceOutput.outputLimitExceeded -and
+            $resourceOutputFiles.runnerStatus -eq "terminated" -and $resourceOutputFiles.outputLimitExceeded -and
+            $resourceOutputBytes.runnerStatus -eq "terminated" -and $resourceOutputBytes.outputLimitExceeded -and
+            $memoryCeilingObserved -and
             -not $shellProcess.shellOrProcessArtifact) {
             Set-Assertion "resource-and-process-limits" "passed" ""
         } else {
@@ -441,9 +476,15 @@ $privacyText = @(
     ($resourceReport | ConvertTo-Json -Depth 20)
 ) -join "`n"
 $containsSensitivePath = [Text.RegularExpressions.Regex]::IsMatch($privacyText, "(?i)[A-Z]:\\") -or
+    [Text.RegularExpressions.Regex]::IsMatch($privacyText, $uncPathPattern) -or
     $privacyText.Contains([Environment]::UserName, [StringComparison]::OrdinalIgnoreCase) -or
-    $privacyText.Contains($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase)
-if ($cleanupSucceeded -and -not $containsSensitivePath) {
+    (-not [string]::IsNullOrEmpty($env:USERPROFILE) -and
+        $privacyText.Contains($env:USERPROFILE, [StringComparison]::OrdinalIgnoreCase))
+$allCases = @($securityCases) + @($resourceCases)
+$caseCleanupSucceeded = @($allCases | Where-Object {
+    -not $_.profileDeleted -or -not $_.aclRestored
+}).Count -eq 0
+if ($cleanupSucceeded -and $caseCleanupSucceeded -and -not $containsSensitivePath) {
     Set-Assertion "job-cleanup-and-evidence-privacy" "passed" ""
 } else {
     Set-Assertion "job-cleanup-and-evidence-privacy" "failed" "Temporary job cleanup or evidence privacy validation failed"

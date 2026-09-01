@@ -8,7 +8,7 @@
 
 进程以清洗后的固定环境和 `--no-shell-escape --interaction=nonstopmode --halt-on-error` 参数挂起创建。宿主核验 AppContainer token 及零 capability，配置只允许一个活动进程、1 GiB 内存并关闭即终止的 Job Object，把进程加入 Job Object 后才恢复线程。宿主另行强制 30 秒交互墙钟、120 秒批项上限，以及最多 64 个、合计 64 MiB 的输出文件；进程退出时仍执行一次最终输出计量。
 
-运行前拒绝位于受控根外的输入、输出或可执行文件，拒绝受信路径上的 link、junction 和 reparse point。运行后重新核验引擎身份，恢复临时 ACL，删除 AppContainer profile 及其临时私有存储，并删除全部随机作业目录。任一 token、Job Object、ACL、身份、资源限制、清理或证据隐私条件不成立，检查都不能成为 `passed`。
+运行前拒绝位于受控根外的输入、输出或可执行文件，拒绝受信路径上的 link、junction 和 reparse point。对抗探针还分别尝试从输出目录写入只读作业根和沙箱外路径，并同时覆盖 junction 与文件 symbolic link。运行后重新核验引擎身份，恢复每个 case 的临时 ACL，删除各自的 AppContainer profile 及其临时私有存储，并删除全部随机作业目录。任一 token、Job Object、ACL、身份、资源限制、清理或证据隐私条件不成立，检查都不能成为 `passed`。
 
 这里的安全边界包括 Windows 运行库对 AppContainer、零 capability、Job Object 和 ACL 的正确实现，也包括 profile 删除前短暂存在的 AppContainer 私有存储。样机不把 LuaLaTeX 的内部配置当作操作系统隔离的替代品。
 
@@ -39,7 +39,7 @@ npm run tex:smoke -- `
 
 ## 对抗语料与判定
 
-版本化 corpus 包含正常公式，以及相对遍历、绝对路径、父进程环境、Kpathsea 搜索路径、junction/reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环和输出洪泛探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary 或连接 listener；资源探针必须由宿主上限终止。
+版本化 corpus 包含正常公式，以及相对遍历、绝对路径、受控输出外写入、父进程环境、Kpathsea 搜索路径、junction/symbolic-link reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环、文件数洪泛、字节洪泛和内存分配探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary、写出受控位置或连接 listener；墙钟、文件数和字节探针必须在运行中被宿主终止，内存探针必须以 Job Object 记录的不超过 1 GiB 峰值失败。
 
 只要正常公式无法在完整 AppContainer + Job Object + ACL 策略下运行，后续恶意探针就不会被误当作成功。探针运行失败、未运行、机制不可用或证据不全都不能产生 `passed`。
 
@@ -52,4 +52,4 @@ npm run tex:smoke -- `
 - `evidence/tex-isolation/security-trace/security-trace.json`：token、capability、Job 分配、身份与攻击探针结果；
 - `evidence/tex-isolation/resource-report/resource-report.json`：固定资源上限与终止结果。
 
-证据不保存 TeX 原始控制台输出、用户目录、绝对输入路径或 canary 内容。作业目录、ACL 或 AppContainer profile 删除失败会把清理断言标为 `failed`，因此带残留的运行不能通过阶段 0 门禁。
+证据不保存 TeX 原始控制台输出、用户目录、盘符或 UNC 绝对输入路径、canary 内容。任一 case 的作业目录、ACL 或 AppContainer profile 删除失败会把清理断言标为 `failed`，因此带残留的运行不能通过阶段 0 门禁。

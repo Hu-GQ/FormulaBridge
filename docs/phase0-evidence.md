@@ -80,6 +80,6 @@ npm run phase0 -- validate-report --report C:\phase0-run\report\report.json
 - 可由 Word 打开的最小 `.docx`，并保留可审计 OOXML 源文件；
 - 一个最小 LaTeX 公式 JSON；
 - 一个可正常编译的最小 LuaLaTeX 输入；
-- 覆盖相对/绝对路径、环境变量、搜索路径、link/reparse point、LuaLaTeX 文件与网络、shell/进程、超时和输出洪泛的恶意 TeX 语料。
+- 覆盖相对/绝对路径、受控输出外写入、环境变量、搜索路径、junction/symbolic-link reparse point、LuaLaTeX 文件与网络、shell/进程、超时、文件数/字节输出洪泛和内存上限的恶意 TeX 语料。
 
 这些文件只是阶段 0 runner 与样机共享的合成基线，不读取用户文档，也不提前实现后续 ticket 的完整发布验证语料。

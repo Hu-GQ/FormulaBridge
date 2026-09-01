@@ -1,0 +1,13 @@
+% Synthetic adversarial input. Both placeholders stay outside the controlled output directory.
+% FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
+\documentclass{article}
+\directlua{
+  local jobHandle = io.open("../outside-write.txt", "wb")
+  local absoluteHandle = io.open([[@@ABSOLUTE_WRITE@@]], "wb")
+  local result = assert(io.open("attack-result.txt", "wb"))
+  result:write((jobHandle or absoluteHandle) and "escaped" or "blocked")
+  if jobHandle then jobHandle:write("escaped"); jobHandle:close() end
+  if absoluteHandle then absoluteHandle:write("escaped"); absoluteHandle:close() end
+  result:close()
+}
+\begin{document}write boundary probe\end{document}
