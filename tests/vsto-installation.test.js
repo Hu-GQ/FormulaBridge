@@ -76,6 +76,8 @@ test("the build pipeline signs and verifies every FormulaBridge deployment artif
   assert.match(build, /CertificateThumbprint/);
   assert.match(build, /ManifestCertificateThumbprint/);
   assert.match(build, /MSBuild\.exe/);
+  assert.match(build, /"\/p:PublishDir=\$publishDirectory\\"/);
+  assert.doesNotMatch(build, /"\/p:PublishUrl=\$publishDirectory\\"/);
   assert.match(build, /Microsoft\.VisualStudio\.Tools\.Office\.targets/);
   assert.match(build, /mage(?:\.exe)?[\s\S]+-Update/);
   assert.match(build, /mage(?:\.exe)?[\s\S]+-Verify/);

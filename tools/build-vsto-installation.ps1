@@ -225,7 +225,7 @@ Invoke-Checked $msbuild @(
     "/p:Platform=x64",
     "/p:SignManifests=true",
     ("/p:ManifestCertificateThumbprint=" + $signing.Thumbprint),
-    "/p:PublishUrl=$publishDirectory\",
+    "/p:PublishDir=$publishDirectory\",
     "/nologo",
     "/verbosity:minimal"
 ) "Publish FormulaBridge.WordAddIn"
