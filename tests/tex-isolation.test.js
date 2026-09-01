@@ -40,7 +40,8 @@ function runSandboxRequest(t, overrides) {
   } else {
     fs.writeFileSync(enginePath, "synthetic engine");
   }
-  fs.writeFileSync(inputPath, "synthetic input");
+  fs.writeFileSync(inputPath, requestOverrides.inputContent || "synthetic input");
+  delete requestOverrides.inputContent;
 
   var request = Object.assign({
     schemaVersion: 1,
@@ -176,6 +177,28 @@ test("the TeX sandbox rejects an executable outside the approved TeX installatio
 
 test("the TeX sandbox rejects a request that raises the product wall-clock ceiling", { timeout: 120000 }, function (t) {
   var result = runSandboxRequest(t, { testWallClockSeconds: 31 });
+
+  assert.equal(result.status, 2, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    schemaVersion: 1,
+    status: "rejected",
+    code: "wall-clock-ceiling-exceeded"
+  });
+});
+
+test("the TeX sandbox rejects input above the immutable 256 KiB ceiling", { timeout: 120000 }, function (t) {
+  var result = runSandboxRequest(t, { inputContent: "x".repeat((256 * 1024) + 1) });
+
+  assert.equal(result.status, 2, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    schemaVersion: 1,
+    status: "rejected",
+    code: "input-ceiling-exceeded"
+  });
+});
+
+test("the TeX sandbox rejects a batch item above its immutable 120 second ceiling", { timeout: 120000 }, function (t) {
+  var result = runSandboxRequest(t, { mode: "batch-item", testWallClockSeconds: 121 });
 
   assert.equal(result.status, 2, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), {
@@ -332,6 +355,10 @@ test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilin
   assert.match(runner, /\$caseCleanupSucceeded.*profileDeleted.*aclRestored/s);
   assert.match(runner, /resource-output-bytes/);
   assert.match(runner, /resource-memory/);
+  assert.match(runner, /input-ceiling-probe/);
+  assert.match(runner, /batch-ceiling-probe/);
+  assert.match(runner, /batch-item/);
+  assert.match(runner, /\$securityCases\) \+ @\(\$resourceCases/);
   assert.match(runner, /peakJobMemoryBytes/);
   assert.match(runner, /uncPathPattern/);
   assert.match(runner, /SymbolicLink/);

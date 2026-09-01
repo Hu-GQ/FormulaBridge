@@ -46,6 +46,7 @@ $jobDirectories = [Collections.Generic.List[string]]::new()
 $reparseLinks = [Collections.Generic.List[string]]::new()
 $securityCases = [Collections.Generic.List[object]]::new()
 $resourceCases = [Collections.Generic.List[object]]::new()
+$policyCases = [Collections.Generic.List[object]]::new()
 $cleanupSucceeded = $false
 $preflightSucceeded = $false
 $mechanismReady = $false
@@ -142,6 +143,8 @@ function Invoke-TexCase {
         [string]$Id,
         [string]$CorpusPath,
         [int]$WallClockSeconds = 30,
+        [ValidateSet("interactive", "batch-item")]
+        [string]$Mode = "interactive",
         [switch]$CreateTraversalCanary,
         [switch]$CreateOutsideLinks,
         [switch]$InjectAbsoluteCanary,
@@ -172,8 +175,8 @@ function Invoke-TexCase {
         $outsideSymbolicLink = Join-Path $linksRoot "outside-canary-symbolic.txt"
         New-Item -ItemType Directory -Path $linksRoot -Force | Out-Null
         New-Item -ItemType Junction -Path $outsideJunction -Target $outsideRoot | Out-Null
-        New-Item -ItemType SymbolicLink -Path $outsideSymbolicLink -Target $canaryPath | Out-Null
         $reparseLinks.Add($outsideJunction)
+        New-Item -ItemType SymbolicLink -Path $outsideSymbolicLink -Target $canaryPath | Out-Null
         $reparseLinks.Add($outsideSymbolicLink)
     }
     if ($InjectAbsoluteCanary) {
@@ -205,7 +208,7 @@ function Invoke-TexCase {
         jobRoot = $jobRoot
         inputPath = $inputPath
         outputDirectory = $outputDirectory
-        mode = "interactive"
+        mode = $Mode
         testWallClockSeconds = $WallClockSeconds
     }
     Write-EvidenceJson -Path $requestPath -Value $request
@@ -291,6 +294,67 @@ function Invoke-TexCase {
     return [pscustomobject]$caseEvidence
 }
 
+function Invoke-PolicyRejection {
+    param(
+        [string]$Id,
+        [ValidateSet("interactive", "batch-item")]
+        [string]$Mode,
+        [int]$WallClockSeconds,
+        [switch]$OversizedInput
+    )
+
+    $caseRoot = Join-Path $workspace ("case-" + $Id)
+    $jobRoot = Join-Path $caseRoot "job"
+    $outputDirectory = Join-Path $jobRoot "output"
+    $inputPath = Join-Path $jobRoot "input.tex"
+    $requestPath = Join-Path $caseRoot "request.json"
+    New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+    $jobDirectories.Add($caseRoot)
+
+    $source = if ($OversizedInput) {
+        "x" * ((256 * 1024) + 1)
+    } else {
+        Get-CaseSource "formula\benign-lualatex.tex"
+    }
+    Set-Content -LiteralPath $inputPath -Value $source -Encoding utf8NoBOM
+    Write-EvidenceJson -Path $requestPath -Value ([ordered]@{
+        schemaVersion = 1
+        enginePath = [IO.Path]::GetFullPath($EnginePath)
+        texRoot = [IO.Path]::GetFullPath($TexRoot)
+        engineSha256 = $ExpectedEngineSha256.ToLowerInvariant()
+        jobRoot = $jobRoot
+        inputPath = $inputPath
+        outputDirectory = $outputDirectory
+        mode = $Mode
+        testWallClockSeconds = $WallClockSeconds
+    })
+
+    $nativeOutput = @(& $sandboxExecutable run --request $requestPath 2>$null) -join [Environment]::NewLine
+    $nativeExitCode = $LASTEXITCODE
+    try {
+        $runner = $nativeOutput | ConvertFrom-Json -Depth 5
+        $policyEvidence = [pscustomobject][ordered]@{
+            id = $Id
+            runnerStatus = $runner.status
+            runnerCode = $runner.code
+            nativeExitCode = $nativeExitCode
+        }
+    }
+    catch {
+        $policyEvidence = [pscustomobject][ordered]@{
+            id = $Id
+            runnerStatus = "failed"
+            runnerCode = "invalid-sandbox-result"
+            nativeExitCode = $nativeExitCode
+        }
+    }
+
+    $policyCases.Add($policyEvidence)
+    Write-SmokeLog ("Completed policy probe " + $Id + " with " +
+        $policyEvidence.runnerStatus + "/" + $policyEvidence.runnerCode)
+    return $policyEvidence
+}
+
 New-Item -ItemType Directory -Path (Split-Path -Parent $logPath) -Force | Out-Null
 Set-Content -LiteralPath $logPath -Value "" -Encoding utf8NoBOM
 Write-SmokeLog "Starting TeX isolation smoke"
@@ -360,6 +424,9 @@ try {
         $resourceOutputFiles = Invoke-TexCase -Id "resource-output-files" -CorpusPath "malicious-tex\resource-output.tex" -ResourceCase
         $resourceOutputBytes = Invoke-TexCase -Id "resource-output-bytes" -CorpusPath "malicious-tex\resource-output-bytes.tex" -ResourceCase
         $resourceMemory = Invoke-TexCase -Id "resource-memory" -CorpusPath "malicious-tex\resource-memory.tex" -ResourceCase
+        $batchBenign = Invoke-TexCase -Id "batch-benign" -CorpusPath "formula\benign-lualatex.tex" -Mode "batch-item" -WallClockSeconds 120 -ResourceCase
+        $inputCeilingProbe = Invoke-PolicyRejection -Id "input-ceiling-probe" -Mode "interactive" -WallClockSeconds 30 -OversizedInput
+        $batchCeilingProbe = Invoke-PolicyRejection -Id "batch-ceiling-probe" -Mode "batch-item" -WallClockSeconds 121
 
         $filesystemCases = @($pathTraversal, $absolutePath, $writeOutside, $environmentVariable, $searchPath, $linkReparse)
         if (@($filesystemCases | Where-Object {
@@ -379,7 +446,7 @@ try {
         } else {
             Set-Assertion "network-blocking" "failed" "The sandbox exposed a network capability or reached the controlled listener"
         }
-        $immutableCases = @($securityCases)
+        $immutableCases = @($securityCases) + @($resourceCases)
         if (@($immutableCases | Where-Object {
             -not $_.engineIdentityVerified -or -not $_.engineIdentityStable -or
             -not $_.assignedToJobBeforeResume -or $_.networkCapabilityCount -ne 0 -or
@@ -394,14 +461,20 @@ try {
             $resourceMemory.texExitCode -ne 0 -and -not $resourceMemory.timedOut -and
             $resourceMemory.peakJobMemoryBytes -ge [long]($memoryLimit / 2) -and
             $resourceMemory.peakJobMemoryBytes -le $memoryLimit
+        $requestCeilingsObserved = $batchBenign.runnerStatus -eq "completed" -and
+            $batchBenign.texExitCode -eq 0 -and $batchBenign.producedPdf -and
+            $inputCeilingProbe.runnerStatus -eq "rejected" -and
+            $inputCeilingProbe.runnerCode -eq "input-ceiling-exceeded" -and
+            $batchCeilingProbe.runnerStatus -eq "rejected" -and
+            $batchCeilingProbe.runnerCode -eq "wall-clock-ceiling-exceeded"
         if ($resourceTimeout.runnerStatus -eq "terminated" -and $resourceTimeout.timedOut -and
             $resourceOutputFiles.runnerStatus -eq "terminated" -and $resourceOutputFiles.outputLimitExceeded -and
             $resourceOutputBytes.runnerStatus -eq "terminated" -and $resourceOutputBytes.outputLimitExceeded -and
-            $memoryCeilingObserved -and
+            $memoryCeilingObserved -and $requestCeilingsObserved -and
             -not $shellProcess.shellOrProcessArtifact) {
             Set-Assertion "resource-and-process-limits" "passed" ""
         } else {
-            Set-Assertion "resource-and-process-limits" "failed" "Wall-clock, output, or single-process enforcement was not observed"
+            Set-Assertion "resource-and-process-limits" "failed" "Input, batch, wall-clock, memory, output, or single-process enforcement was not observed"
         }
     } else {
         Set-Assertion "approved-read-write-roots" "failed" "A benign LuaLaTeX formula could not run under the required AppContainer/Job/ACL policy"
@@ -466,6 +539,7 @@ $resourceReport = [ordered]@{
         activeProcesses = 1
     }
     cases = @($resourceCases)
+    policyCases = @($policyCases)
 }
 Write-EvidenceJson -Path $securityTracePath -Value $securityTrace
 Write-EvidenceJson -Path $resourceReportPath -Value $resourceReport
