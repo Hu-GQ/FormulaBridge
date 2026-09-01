@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "commit": "113a9000e744dd8a6c2923279e0612cd67a1af23",
+  "mechanism": "AppContainer + Job Object + filesystem ACL + TeX policy",
+  "networkCapabilities": [],
+  "cases": []
+}

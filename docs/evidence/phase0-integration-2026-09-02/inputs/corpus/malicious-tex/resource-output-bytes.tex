@@ -1,0 +1,18 @@
+% Synthetic adversarial input. The output supervisor must terminate after the immutable byte ceiling.
+% FORMULABRIDGE_ATTACK_RESULT: no marker is expected after the output ceiling is crossed.
+\documentclass{article}
+\directlua{
+  local target = @@OUTPUT_BYTES@@
+  local chunk = string.rep("x", 1024 * 1024)
+  local handle = assert(io.open("flood-bytes.tmp", "wb"))
+  local written = 0
+  while written < target do
+    handle:write(chunk)
+    handle:flush()
+    written = written + #chunk
+    local resumeAt = os.clock() + 0.02
+    while os.clock() < resumeAt do end
+  end
+  handle:close()
+}
+\begin{document}output byte exhaustion probe\end{document}

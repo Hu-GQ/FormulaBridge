@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "checkId": "source-portable-copy",
+  "status": "passed",
+  "assertions": [
+    {
+      "id": "managed-formula-payload",
+      "status": "passed"
+    },
+    {
+      "id": "same-document-copy",
+      "status": "passed"
+    },
+    {
+      "id": "cross-document-copy",
+      "status": "passed"
+    },
+    {
+      "id": "new-copy-identity",
+      "status": "passed"
+    },
+    {
+      "id": "move-preserves-identity",
+      "status": "passed"
+    },
+    {
+      "id": "save-reopen-preserves-source",
+      "status": "passed"
+    },
+    {
+      "id": "package-and-word-automation",
+      "status": "passed"
+    }
+  ]
+}

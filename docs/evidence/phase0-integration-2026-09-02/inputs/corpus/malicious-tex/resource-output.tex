@@ -1,0 +1,13 @@
+% Synthetic adversarial input. The output supervisor must terminate after the immutable file-count ceiling.
+% FORMULABRIDGE_ATTACK_RESULT: no marker is expected after the output ceiling is crossed.
+\documentclass{article}
+\directlua{
+  for index = 1, @@OUTPUT_FILE_COUNT@@ do
+    local handle = assert(io.open("flood-" .. tostring(index) .. ".tmp", "wb"))
+    handle:write("x")
+    handle:close()
+    local resumeAt = os.clock() + 0.02
+    while os.clock() < resumeAt do end
+  end
+}
+\begin{document}output exhaustion probe\end{document}

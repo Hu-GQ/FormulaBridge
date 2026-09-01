@@ -1,0 +1,11 @@
+% Synthetic adversarial input. Never run outside the restricted RenderHost harness.
+% FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
+\documentclass{article}
+\directlua{
+  local handle = io.open("../../outside-canary.txt", "rb")
+  local result = assert(io.open("attack-result.txt", "wb"))
+  result:write(handle and "escaped" or "blocked")
+  if handle then handle:close() end
+  result:close()
+}
+\begin{document}path traversal probe\end{document}

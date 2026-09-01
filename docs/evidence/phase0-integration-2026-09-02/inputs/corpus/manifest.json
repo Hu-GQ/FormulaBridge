@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.3.0",
+  "privacy": {
+    "containsPersonalData": false,
+    "provenance": "synthetic"
+  },
+  "entries": [
+    {
+      "id": "word.minimal-document",
+      "category": "word",
+      "path": "word/minimal-document.docx",
+      "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "purpose": "Minimal synthetic Word package for Phase 0 harness and package round-trip checks.",
+      "sha256": "d3c893d33ea6f3587a97a138b34731c929d6d02b1a428119154023cabebdee3d"
+    },
+    {
+      "id": "formula.quadratic",
+      "category": "formula",
+      "path": "formula/minimal-formulas.json",
+      "mediaType": "application/json",
+      "purpose": "Minimal synthetic LaTeX formula baseline.",
+      "sha256": "a47e108307f33efaef176e65f263dcce81b09b3fdd02143b51e2f0df1298210b"
+    },
+    {
+      "id": "formula.benign-lualatex",
+      "category": "formula",
+      "path": "formula/benign-lualatex.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Minimal benign LuaLaTeX compilation used by the TeX isolation spike.",
+      "sha256": "bba1993945c2072b1396f98eac79a918b953acc2029ea501cae6ed42fbe0d6b2"
+    },
+    {
+      "id": "malicious-tex.path-traversal",
+      "category": "malicious-tex",
+      "path": "malicious-tex/path-traversal.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Minimal synthetic attempt to read a canary outside the controlled job root.",
+      "sha256": "11197d8b5c55f9aac93d8dba2ba0a08e269b1cf6dff64f9cabf41bfcad1465bd"
+    },
+    {
+      "id": "malicious-tex.absolute-path",
+      "category": "malicious-tex",
+      "path": "malicious-tex/absolute-path.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to read an absolute canary path outside controlled roots.",
+      "sha256": "9149b695f8251d194f7dddd069d55e80e9bcdbeadc3fe7198882cb75a0af167a"
+    },
+    {
+      "id": "malicious-tex.write-outside",
+      "category": "malicious-tex",
+      "path": "malicious-tex/write-outside.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to write outside the controlled output directory.",
+      "sha256": "5e1bbd1101d0b7cd63978dc2c7def7c8009db81f74009c4af88698b869327a07"
+    },
+    {
+      "id": "malicious-tex.environment-variable",
+      "category": "malicious-tex",
+      "path": "malicious-tex/environment-variable.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to recover an outside path from the parent environment.",
+      "sha256": "45ef1e7ac9d922ab8b066e9e131f9e6788ac0ddb6f24deba9d1b88175ea8dcc1"
+    },
+    {
+      "id": "malicious-tex.search-path",
+      "category": "malicious-tex",
+      "path": "malicious-tex/search-path.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic Kpathsea attempt to resolve an outside canary through poisoned search paths.",
+      "sha256": "1973e8f2b5df1b3713a2edbec5808c3cee4e50bb616cf8f6b3c96812b1ad67fe"
+    },
+    {
+      "id": "malicious-tex.link-and-reparse-point",
+      "category": "malicious-tex",
+      "path": "malicious-tex/link-and-reparse-point.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to follow a task-root link or reparse point to an outside canary.",
+      "sha256": "f1d92cb19188d322cde8e532a8f62ea2af926c04bc529d902d74dc54c49a0211"
+    },
+    {
+      "id": "malicious-tex.lualatex-file-and-network",
+      "category": "malicious-tex",
+      "path": "malicious-tex/lualatex-file-and-network.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX attempt to read an outside canary and connect to a controlled listener.",
+      "sha256": "4d9a39e36a1d6eee1b51e3632f9c04a48410d1426c44b361bb5c9aeeb20965a3"
+    },
+    {
+      "id": "malicious-tex.shell-and-process",
+      "category": "malicious-tex",
+      "path": "malicious-tex/shell-and-process.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic TeX and Lua attempts to enable shell escape or create a child process.",
+      "sha256": "6610f02482b5c6b3a5fb025403cacea8a89a9f8d2dc4cfc08160bcba422a2b40"
+    },
+    {
+      "id": "malicious-tex.resource-exhaustion",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-exhaustion.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX infinite loop used to prove immutable wall-clock termination.",
+      "sha256": "5ad00f1994529ff5d563cc53819c30aeee9bcf11823cfb4867bb7b5de0b0f132"
+    },
+    {
+      "id": "malicious-tex.resource-output",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-output.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output file-count ceiling.",
+      "sha256": "a219b989392bdab5f944c3ff30a7d5802700b4847c5a1cb20fb0690d9464d081"
+    },
+    {
+      "id": "malicious-tex.resource-output-bytes",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-output-bytes.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output byte ceiling.",
+      "sha256": "9f782979af3f3c10842c904ca304d3b4ed6a6ee21b1c4beb5ee4025d634be875"
+    },
+    {
+      "id": "malicious-tex.resource-memory",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-memory.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic LuaLaTeX allocation loop used to prove the immutable Job Object memory ceiling.",
+      "sha256": "f1047f2d024fb3696353d1d8d2b9c51fc7dc1dd40d7e895a28570eec2df84bf2"
+    },
+    {
+      "id": "malicious-tex.resource-cancellation",
+      "category": "malicious-tex",
+      "path": "malicious-tex/resource-cancellation.tex",
+      "mediaType": "application/x-tex",
+      "purpose": "Synthetic running-task cancellation probe with a ready marker and an infinite loop.",
+      "sha256": "c1bf2fa10ac00cfb338a8149d07e46de3f195b0ad0e06abc5d50ac831fa84621"
+    }
+  ]
+}

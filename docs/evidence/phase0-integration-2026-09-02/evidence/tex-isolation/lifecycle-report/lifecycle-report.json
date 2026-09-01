@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "status": "not-run",
+  "reason": "The supported-platform and benign-isolation gates have not passed."
+}

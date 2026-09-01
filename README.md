@@ -37,3 +37,5 @@ npm test
 [阶段 0 双格式 Word 往返样机](docs/dual-format-roundtrip-spike.md)实现 Issue #5 的自包含 SVG 与 PNG fallback OOXML 载体、Word 保存/重开和普通复制验证、Word 打印与 PDF 导出，以及结构和容差视觉证据。测试在 FormulaBridge 未加载的独立 Word 实例中运行，也不依赖 `src/web/editor`。
 
 [阶段 0 外部诊断](docs/vsto-diagnostics.md)补齐 Issue #3 的 WebView2、独立签名校验、当前 Word 加载状态及真实禁用场景证据。
+
+[阶段 0 整合与验收记录](docs/phase0-closeout.md)记录统一提交的真实运行结果、原始证据和尚未解除的验收阻塞。

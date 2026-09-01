@@ -1,0 +1,12 @@
+% Synthetic adversarial input. Shell escape and child process creation must both remain unavailable.
+% FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
+\documentclass{article}
+\immediate\write18{cmd.exe /d /c echo escaped>shell-escape.txt}
+\directlua{
+  local first, second, third = os.execute("cmd.exe /d /c echo escaped>process-escape.txt")
+  local launched = first == true or first == 0 or third == 0
+  local result = assert(io.open("attack-result.txt", "wb"))
+  result:write(launched and "escaped" or "blocked")
+  result:close()
+}
+\begin{document}shell and process probe\end{document}

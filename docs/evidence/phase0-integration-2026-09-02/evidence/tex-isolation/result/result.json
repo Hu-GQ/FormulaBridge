@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "checkId": "tex-isolation",
+  "status": "blocked",
+  "assertions": [
+    {
+      "id": "approved-read-write-roots",
+      "status": "blocked",
+      "reason": "The TeX isolation preflight could not establish a runnable approved engine"
+    },
+    {
+      "id": "filesystem-escape-resistance",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "lualatex-file-and-network-resistance",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "network-blocking",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "immutable-executable-and-policy",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "job-cleanup-and-evidence-privacy",
+      "status": "passed"
+    },
+    {
+      "id": "resource-and-process-limits",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "cancellation-and-process-tree",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "same-host-recovery",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "word-survives-resource-failures",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    }
+  ]
+}

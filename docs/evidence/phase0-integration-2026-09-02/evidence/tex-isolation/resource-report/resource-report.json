@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "ceilings": {
+    "inputBytes": 262144,
+    "interactiveSeconds": 30,
+    "batchItemSeconds": 120,
+    "memoryBytes": 1073741824,
+    "outputFiles": 64,
+    "outputBytes": 67108864,
+    "activeProcesses": 1
+  },
+  "cases": [],
+  "policyCases": []
+}

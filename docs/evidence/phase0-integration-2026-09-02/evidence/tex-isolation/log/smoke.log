@@ -1,0 +1,4 @@
+
+2026-09-01T16:44:34.615Z Starting TeX isolation smoke
+2026-09-01T16:44:49.738Z Preflight failed: The TeX isolation smoke requires the supported Windows 11 x64 platform
+2026-09-01T16:44:50.011Z Finished TeX isolation smoke with status blocked

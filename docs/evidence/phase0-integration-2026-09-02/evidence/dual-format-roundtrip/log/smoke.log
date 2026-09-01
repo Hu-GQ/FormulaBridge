@@ -1,0 +1,9 @@
+2026-09-01T16:43:27.745Z Starting dual-format Word round-trip smoke for commit 113a9000e744dd8a6c2923279e0612cd67a1af23
+2026-09-01T16:43:51.182Z Preflight passed with a dedicated hidden Word instance and FormulaBridge disconnected.
+2026-09-01T16:43:52.120Z The source package contains self-contained SVG and PNG fallback media.
+2026-09-01T16:43:54.081Z Word save, close, and reopen preserved the dual-format relationship.
+2026-09-01T16:43:56.518Z Ordinary same-document copy preserved both formats.
+2026-09-01T16:43:58.909Z Ordinary cross-document copy preserved both formats.
+2026-09-01T16:43:59.652Z Printing through Word active printer: FormulaBridge Phase0 Capture 21056
+2026-09-01T16:44:23.879Z Word print and PDF export passed structure and tolerance-based visual checks.
+2026-09-01T16:44:23.925Z All Word operations completed with FormulaBridge absent or disconnected.

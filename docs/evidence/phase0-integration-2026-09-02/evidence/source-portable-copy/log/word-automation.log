@@ -1,0 +1,7 @@
+PASS managed-formula-payload
+PASS same-document-copy
+PASS new-copy-identity
+PASS move-preserves-identity
+PASS cross-document-copy
+PASS save-reopen-preserves-source
+PASS package-and-word-automation

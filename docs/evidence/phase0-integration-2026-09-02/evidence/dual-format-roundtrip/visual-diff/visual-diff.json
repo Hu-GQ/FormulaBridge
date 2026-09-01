@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "renderer": "Poppler pdftoppm",
+  "normalization": {
+    "width": 160,
+    "height": 50
+  },
+  "tolerances": {
+    "maximumMeanAbsoluteError": 0.35,
+    "maximumAspectRatioDelta": 0.35,
+    "maximumInkRatioDelta": 0.7
+  },
+  "export": {
+    "passed": true,
+    "renderedWidth": 1224,
+    "renderedHeight": 1584,
+    "inkBounds": {
+      "x": 391,
+      "y": 158,
+      "width": 439,
+      "height": 90
+    },
+    "meanAbsoluteError": 0.027448,
+    "aspectRatioDelta": 0.02093,
+    "inkRatioDelta": 0.007042
+  },
+  "print": {
+    "passed": true,
+    "renderedWidth": 1191,
+    "renderedHeight": 1684,
+    "inkBounds": {
+      "x": 380,
+      "y": 225,
+      "width": 426,
+      "height": 88
+    },
+    "meanAbsoluteError": 0.016781,
+    "aspectRatioDelta": 0.013214,
+    "inkRatioDelta": 0.00939
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "commit": "113a9000e744dd8a6c2923279e0612cd67a1af23",
+  "wordVersion": null,
+  "clipboardPath": "Word.Selection.Copy/Paste and Word.Selection.Cut/Paste",
+  "original": {
+    "formulaId": "7b020220-4758-4953-bc20-59797d66d9fb",
+    "label": "eq:quadratic"
+  },
+  "sameDocumentCopy": {
+    "formulaId": "38bc1e9d-dfe2-49f9-a677-71182e44bad1",
+    "label": ""
+  },
+  "crossDocumentCopy": {
+    "formulaId": "e4dd02c5-9da2-4ee3-904c-15149a68ce0e",
+    "label": ""
+  },
+  "move": {
+    "formulaId": "7b020220-4758-4953-bc20-59797d66d9fb",
+    "label": "eq:quadratic",
+    "referenceBookmark": "FormulaBridge_eq_quadratic"
+  },
+  "saveReopen": {
+    "sourceFormulaCount": 2,
+    "targetFormulaCount": 1
+  }
+}

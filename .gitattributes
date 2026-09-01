@@ -5,3 +5,4 @@ tests/fixtures/dual-format/*.svg text eol=lf
 tests/fixtures/dual-format/*.json text eol=lf
 tests/fixtures/dual-format/*.png binary
 corpus/phase0/malicious-tex/resource-cancellation.tex text eol=lf
+docs/evidence/** -text

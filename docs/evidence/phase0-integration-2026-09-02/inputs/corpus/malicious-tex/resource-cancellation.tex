@@ -1,0 +1,10 @@
+% Synthetic cancellation probe. The marker proves the engine started before cancellation.
+% FORMULABRIDGE_ATTACK_RESULT: cancel-ready.txt
+\documentclass{article}
+\directlua{
+  local ready = assert(io.open("cancel-ready.txt", "wb"))
+  ready:write("ready")
+  ready:close()
+  while true do end
+}
+\begin{document}cancellation probe\end{document}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "checkId": "vsto-installation",
+  "status": "blocked",
+  "assertions": [
+    {
+      "id": "current-user-installation",
+      "status": "blocked",
+      "reason": "FORMULABRIDGE_VSTO_INSTALLER is not configured with a signed MSI"
+    },
+    {
+      "id": "signature-verification",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "automatic-ribbon-load",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "non-destructive-uninstall",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "installation-lifecycle-smoke",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-failure-detection",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-load-state-consistency",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-respects-policy",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-fault-smoke",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-privacy",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-prerequisite-and-signature-checks",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    },
+    {
+      "id": "diagnostics-real-disabled-state",
+      "status": "not-run",
+      "reason": "The blocked preflight prevented this assertion"
+    }
+  ]
+}
