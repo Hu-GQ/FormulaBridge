@@ -5,10 +5,11 @@
   "description": "An independently developed LaTeX equation editor for Microsoft Word.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check tools/phase0-evidence.js && node --check tools/phase0-providers/tex-isolation.js && node --check tests/phase0-evidence.test.js && node --check tests/vsto-installation.test.js && node --check tests/tex-isolation.test.js && node --check tests/product-design.test.js && node --check tests/technical-solution.test.js && node --check tests/domain-model.test.js && node --check tests/agent-skills-config.test.js && node tools/phase0-evidence.js validate-checks --manifest phase0/checks.json && node tools/phase0-evidence.js validate-corpus --manifest corpus/phase0/manifest.json && dotnet build src/desktop/FormulaBridge.TexSandbox/FormulaBridge.TexSandbox.csproj --configuration Release --nologo",
+    "check": "node --check tools/phase0-evidence.js && node --check tools/source-portable-copy/inspect-docx.js && node --check tools/phase0-providers/source-portable-copy.js && node --check tools/phase0-providers/tex-isolation.js && node --check tests/phase0-evidence.test.js && node --check tests/vsto-installation.test.js && node --check tests/source-portable-copy.test.js && node --check tests/tex-isolation.test.js && node --check tests/product-design.test.js && node --check tests/technical-solution.test.js && node --check tests/domain-model.test.js && node --check tests/agent-skills-config.test.js && node tools/phase0-evidence.js validate-checks --manifest phase0/checks.json && node tools/phase0-evidence.js validate-corpus --manifest corpus/phase0/manifest.json && dotnet build src/desktop/FormulaBridge.TexSandbox/FormulaBridge.TexSandbox.csproj --configuration Release --nologo",
     "phase0": "node tools/phase0-evidence.js",
     "vsto:build": "pwsh -NoProfile -File tools/build-vsto-installation.ps1",
     "vsto:smoke": "pwsh -NoProfile -File tools/test-vsto-installation.ps1",
+    "copy:smoke": "pwsh -NoProfile -File tools/test-source-portable-copy.ps1",
     "tex:build": "dotnet build src/desktop/FormulaBridge.TexSandbox/FormulaBridge.TexSandbox.csproj --configuration Release",
     "tex:smoke": "pwsh -NoProfile -File tools/test-tex-isolation.ps1"
   },

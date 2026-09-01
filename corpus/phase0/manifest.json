@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "1.1.0",
+  "corpusVersion": "1.2.0",
   "privacy": {
     "containsPersonalData": false,
     "provenance": "synthetic"
@@ -12,7 +12,7 @@
       "path": "word/minimal-document.docx",
       "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "purpose": "Minimal synthetic Word package for Phase 0 harness and package round-trip checks.",
-      "sha256": "b61c83306b00f3c6d4915d680ef1529ca5beeb1d191bc341bac4b20c965502d2"
+      "sha256": "d3c893d33ea6f3587a97a138b34731c929d6d02b1a428119154023cabebdee3d"
     },
     {
       "id": "formula.quadratic",

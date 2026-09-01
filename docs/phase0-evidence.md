@@ -4,7 +4,7 @@
 
 ## 统一入口
 
-执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装与 TeX 隔离样机已经注册提供者；未配置签名 MSI 或受支持的 TeX 环境时明确记为 `blocked`。没有提供者的检查记为 `not-run`，使总门禁返回非零：
+执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装、源码可移植复制与 TeX 隔离样机已经注册提供者；未配置必需制品、真实 Word 或受支持的 TeX 环境时明确记为 `blocked`。没有提供者的检查记为 `not-run`，使总门禁返回非零：
 
 ```powershell
 npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase0-run\report

@@ -141,7 +141,7 @@ test("complete phase 0 evidence generates machine and human readable reports", f
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "passed")
@@ -168,7 +168,7 @@ test("complete phase 0 evidence generates machine and human readable reports", f
   assert.equal(report.environment.runtimes[0].name, "Node.js");
   assert.equal(report.environment.tex.installations[0].distribution, "TeX Live");
   assert.equal(report.environment.signing.trustLevel, "test");
-  assert.equal(report.corpus.version, "1.1.0");
+  assert.equal(report.corpus.version, "1.2.0");
   assert.equal(report.corpus.sha256, crypto
     .createHash("sha256")
     .update(fs.readFileSync(path.join(projectRoot, "corpus", "phase0", "manifest.json")))
@@ -200,7 +200,7 @@ test("a passed check cannot omit required environment evidence", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: [
@@ -262,7 +262,7 @@ test("failed, blocked, and not-run stay distinct and fail the phase 0 gate", fun
       finishedAt: "2026-08-30T08:05:00.000Z",
       environment: createAvailableEnvironment(),
       corpus: {
-        version: "1.1.0",
+        version: "1.2.0",
         manifest: "corpus/phase0/manifest.json"
       },
       checks: createChecks(statusDirectory, status)
@@ -334,7 +334,7 @@ test("report schema validation rejects incomplete artifact evidence", function (
     overallStatus: "passed",
     environment: environment,
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json",
       sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     },
@@ -404,7 +404,7 @@ test("unavailable environment is reported as blocked without undefined values", 
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: environment,
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "not-run")
@@ -491,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.3.0");
+  assert.equal(checkSet.checkSetVersion, "1.4.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [
@@ -558,7 +558,7 @@ test("a run cannot omit a required Phase 0 check", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -595,7 +595,7 @@ test("a run cannot hide missing required runtimes behind the Node.js version", f
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: environment,
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "passed")
@@ -638,7 +638,7 @@ test("validate-report recomputes archived evidence hashes", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "passed")
@@ -699,7 +699,7 @@ test("report filenames used as source evidence cannot overwrite archived evidenc
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -745,7 +745,7 @@ test("empty evidence files cannot satisfy the Phase 0 contract", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -775,7 +775,7 @@ test("result evidence must be structured and match its check", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -804,7 +804,7 @@ test("report archives the pinned corpus and check set for standalone validation"
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "passed")
@@ -862,7 +862,7 @@ test("evidence paths cannot escape through directory links", function (t) {
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -889,7 +889,7 @@ test("execute runs a registered check provider", function (t) {
     commit: "0123456789abcdef0123456789abcdef01234567",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     }
   }, workspace, { checks: [definition] });
@@ -922,7 +922,7 @@ test("execute blocks unavailable registered providers and leaves unregistered pr
     startedAt: "2026-08-30T08:00:00.000Z",
     environment: environment,
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     }
   }, null, 2));
@@ -977,7 +977,7 @@ test("result evidence cannot omit a required acceptance assertion", function (t)
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: checks
@@ -1023,7 +1023,7 @@ test("report output cannot escape through a pre-existing directory link", functi
     finishedAt: "2026-08-30T08:05:00.000Z",
     environment: createAvailableEnvironment(),
     corpus: {
-      version: "1.1.0",
+      version: "1.2.0",
       manifest: "corpus/phase0/manifest.json"
     },
     checks: createChecks(workspace, "passed")

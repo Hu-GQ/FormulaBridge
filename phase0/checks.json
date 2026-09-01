@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.3.0",
+  "checkSetVersion": "1.4.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -33,6 +33,7 @@
       "id": "source-portable-copy",
       "name": "Source-portable ordinary copy",
       "purpose": "Prove ordinary same-document and cross-document copy preserves source while creating a new identity.",
+      "provider": "tools/phase0-providers/source-portable-copy.js",
       "requiredEvidenceKinds": ["result", "log"],
       "passedEvidenceKinds": ["docx-package", "word-automation"],
       "requiredAssertions": [
