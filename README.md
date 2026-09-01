@@ -33,3 +33,5 @@ npm test
 [阶段 0 源码可移植复制样机](docs/source-portable-copy-spike.md)实现 Issue #4 的组合元数据载体、自动化 DOCX 包检查和真实 Word 剪贴板 smoke runner，覆盖同文档复制、跨文档复制、移动、引用、保存与重开。它只创建合成临时文档，不读取或修改用户文档，也不依赖 `src/web/editor` UI 原型。
 
 [阶段 0 TeX 隔离样机](docs/tex-isolation-spike.md)实现 Issue #6 的 Windows 11 x64 AppContainer、Job Object、文件系统 ACL 和固定 TeX 策略验证，使用恶意 LuaLaTeX 语料证明文件、网络、进程与资源边界。隔离机制或环境不满足时只能生成 `blocked`/`failed` 证据，不能降级为不受控的本地 TeX。
+
+[阶段 0 双格式 Word 往返样机](docs/dual-format-roundtrip-spike.md)实现 Issue #5 的自包含 SVG 与 PNG fallback OOXML 载体、Word 保存/重开和普通复制验证、Word 打印与 PDF 导出，以及结构和容差视觉证据。测试在 FormulaBridge 未加载的独立 Word 实例中运行，也不依赖 `src/web/editor`。

@@ -1,0 +1,6 @@
+corpus/phase0/formula/minimal-formulas.json text eol=lf
+corpus/phase0/malicious-tex/path-traversal.tex text eol=lf
+tests/fixtures/dual-format/*.tex text eol=lf
+tests/fixtures/dual-format/*.svg text eol=lf
+tests/fixtures/dual-format/*.json text eol=lf
+tests/fixtures/dual-format/*.png binary

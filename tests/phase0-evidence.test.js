@@ -491,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.4.0");
+  assert.equal(checkSet.checkSetVersion, "1.5.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [
@@ -902,7 +902,7 @@ test("execute runs a registered check provider", function (t) {
   });
 });
 
-test("execute blocks unavailable registered providers and leaves unregistered providers not-run", function (t) {
+test("execute blocks every unavailable provider in the integrated check set", function (t) {
   var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-execute-"));
   var inputPath = path.join(workspace, "execution.json");
   var outputDirectory = path.join(workspace, "report");
@@ -944,6 +944,7 @@ test("execute blocks unavailable registered providers and leaves unregistered pr
   var report = JSON.parse(fs.readFileSync(path.join(outputDirectory, "report.json"), "utf8"));
   assert.equal(report.overallStatus, "blocked");
   assert.equal(report.checks.length, requiredChecks.length);
+  assert.ok(requiredChecks.every(function (check) { return typeof check.provider === "string"; }));
   assert.equal(report.checks[0].status, "blocked");
   assert.match(report.checks[0].reason, /FORMULABRIDGE_VSTO_INSTALLER/);
   report.checks.slice(1).forEach(function (check, index) {

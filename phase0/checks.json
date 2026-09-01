@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.4.0",
+  "checkSetVersion": "1.5.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -14,8 +14,16 @@
       "name": "VSTO user-level installation and diagnostics",
       "purpose": "Prove signed per-user installation, automatic Word loading, and external diagnostics.",
       "provider": "tools/phase0-providers/vsto-installation.js",
-      "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["installer", "signature-report", "word-load-state", "diagnostics-report"],
+      "requiredEvidenceKinds": [
+        "result",
+        "log"
+      ],
+      "passedEvidenceKinds": [
+        "installer",
+        "signature-report",
+        "word-load-state",
+        "diagnostics-report"
+      ],
       "requiredAssertions": [
         "current-user-installation",
         "signature-verification",
@@ -34,8 +42,14 @@
       "name": "Source-portable ordinary copy",
       "purpose": "Prove ordinary same-document and cross-document copy preserves source while creating a new identity.",
       "provider": "tools/phase0-providers/source-portable-copy.js",
-      "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["docx-package", "word-automation"],
+      "requiredEvidenceKinds": [
+        "result",
+        "log"
+      ],
+      "passedEvidenceKinds": [
+        "docx-package",
+        "word-automation"
+      ],
       "requiredAssertions": [
         "managed-formula-payload",
         "same-document-copy",
@@ -50,8 +64,17 @@
       "id": "dual-format-roundtrip",
       "name": "SVG and PNG Word round trip",
       "purpose": "Prove embedded SVG and PNG fallback survive Word save, reopen, copy, print, and PDF export.",
-      "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["docx-package", "pdf", "visual-diff"],
+      "provider": "tools/phase0-providers/dual-format-roundtrip.js",
+      "requiredEvidenceKinds": [
+        "result",
+        "log"
+      ],
+      "passedEvidenceKinds": [
+        "docx-package",
+        "pdf",
+        "print-output",
+        "visual-diff"
+      ],
       "requiredAssertions": [
         "self-contained-svg-png",
         "save-reopen-roundtrip",
@@ -66,8 +89,14 @@
       "name": "TeX isolation and resource limits",
       "purpose": "Prove document TeX cannot escape controlled roots, access the network, or exceed resource and process limits.",
       "provider": "tools/phase0-providers/tex-isolation.js",
-      "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["security-trace", "resource-report"],
+      "requiredEvidenceKinds": [
+        "result",
+        "log"
+      ],
+      "passedEvidenceKinds": [
+        "security-trace",
+        "resource-report"
+      ],
       "requiredAssertions": [
         "approved-read-write-roots",
         "filesystem-escape-resistance",
