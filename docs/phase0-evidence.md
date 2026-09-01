@@ -4,7 +4,7 @@
 
 ## 统一入口
 
-执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装样机已经注册提供者；未配置签名 MSI 时明确记为 `blocked`。其余没有提供者的检查记为 `not-run`，使总门禁返回非零：
+执行输入必须符合 [`schemas/phase0-execution.schema.json`](../schemas/phase0-execution.schema.json)。`execute` 依次校验环境和 corpus，执行 [`phase0/checks.json`](../phase0/checks.json) 中注册的提供者，再校验结构化结果和证据并生成报告。VSTO 安装和双格式 Word 往返样机已经注册提供者；缺少各自运行前提时明确记为 `blocked`。源码可移植复制和 TeX 隔离检查尚未注册提供者，保持 `not-run`，使总门禁返回非零：
 
 ```powershell
 npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase0-run\report
@@ -34,12 +34,14 @@ npm run phase0 -- run --input C:\phase0-run\run.json --output C:\phase0-run\repo
 
 ## 固定检查与证据
 
-[`phase0/checks.json`](../phase0/checks.json)固定 `1.2.0` 检查集、验收断言、提供者和运行时清单。运行输入必须按清单顺序恰好包含以下四项，不能省略、改名或用任意 sample 检查替代：
+[`phase0/checks.json`](../phase0/checks.json)固定 `1.3.0` 检查集、验收断言、提供者和运行时清单。运行输入必须按清单顺序恰好包含以下四项，不能省略、改名或用任意 sample 检查替代：
 
 - VSTO 用户级安装、自动加载和外部诊断；
 - 源码可移植普通复制；
 - SVG 与 PNG Word 往返；
 - TeX 文件/网络隔离及资源上限。
+
+双格式提供者把 DOCX 包检查、Word 导出 PDF、Word 打印 PDF 和容差视觉比较直接写入报告证据树。它的环境前提、临时打印捕获开关和独立运行方式见[双格式 Word 往返样机](dual-format-roundtrip-spike.md)。
 
 `passed` 必须同时提供清单中的结构化 `result`、`log` 和全部通过产物；`failed` 至少保留结构化 `result` 与 `log`；`blocked`、`not-run` 必须记录原因。空文件、缺少断言、错误检查 ID、结果状态与断言汇总不一致均属于不可信证据，退出码为 `2`。
 

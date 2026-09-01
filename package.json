@@ -5,10 +5,11 @@
   "description": "An independently developed LaTeX equation editor for Microsoft Word.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check tools/phase0-evidence.js && node --check tests/phase0-evidence.test.js && node --check tests/vsto-installation.test.js && node --check tests/product-design.test.js && node --check tests/technical-solution.test.js && node --check tests/domain-model.test.js && node --check tests/agent-skills-config.test.js && node tools/phase0-evidence.js validate-checks --manifest phase0/checks.json && node tools/phase0-evidence.js validate-corpus --manifest corpus/phase0/manifest.json",
+    "check": "node --check tools/phase0-evidence.js && node --check tools/dual-format-package.js && node --check tools/phase0-providers/dual-format-roundtrip.js && node --check tests/phase0-evidence.test.js && node --check tests/dual-format-roundtrip.test.js && node --check tests/vsto-installation.test.js && node --check tests/product-design.test.js && node --check tests/technical-solution.test.js && node --check tests/domain-model.test.js && node --check tests/agent-skills-config.test.js && node tools/phase0-evidence.js validate-checks --manifest phase0/checks.json && node tools/phase0-evidence.js validate-corpus --manifest corpus/phase0/manifest.json",
     "phase0": "node tools/phase0-evidence.js",
     "vsto:build": "pwsh -NoProfile -File tools/build-vsto-installation.ps1",
-    "vsto:smoke": "pwsh -NoProfile -File tools/test-vsto-installation.ps1"
+    "vsto:smoke": "pwsh -NoProfile -File tools/test-vsto-installation.ps1",
+    "dual-format:smoke": "pwsh -NoProfile -File tools/test-dual-format-roundtrip.ps1"
   },
   "engines": {
     "node": ">=20"

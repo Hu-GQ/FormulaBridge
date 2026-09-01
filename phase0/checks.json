@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.2.0",
+  "checkSetVersion": "1.3.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -49,8 +49,9 @@
       "id": "dual-format-roundtrip",
       "name": "SVG and PNG Word round trip",
       "purpose": "Prove embedded SVG and PNG fallback survive Word save, reopen, copy, print, and PDF export.",
+      "provider": "tools/phase0-providers/dual-format-roundtrip.js",
       "requiredEvidenceKinds": ["result", "log"],
-      "passedEvidenceKinds": ["docx-package", "pdf", "visual-diff"],
+      "passedEvidenceKinds": ["docx-package", "pdf", "print-output", "visual-diff"],
       "requiredAssertions": [
         "self-contained-svg-png",
         "save-reopen-roundtrip",

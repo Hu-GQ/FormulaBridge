@@ -491,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.2.0");
+  assert.equal(checkSet.checkSetVersion, "1.3.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [
@@ -902,7 +902,7 @@ test("execute runs a registered check provider", function (t) {
   });
 });
 
-test("execute runs the VSTO provider as blocked and leaves unregistered providers not-run", function (t) {
+test("execute distinguishes blocked registered providers from unregistered checks", function (t) {
   var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-phase0-execute-"));
   var inputPath = path.join(workspace, "execution.json");
   var outputDirectory = path.join(workspace, "report");
@@ -911,12 +911,15 @@ test("execute runs the VSTO provider as blocked and leaves unregistered provider
     fs.rmSync(workspace, { recursive: true, force: true });
   });
 
+  var environment = createAvailableEnvironment();
+  environment.word = { availability: "unavailable", reason: "Word is not installed" };
+
   fs.writeFileSync(inputPath, JSON.stringify({
     schemaVersion: 1,
     runId: "phase0-no-providers",
     commit: "0123456789abcdef0123456789abcdef01234567",
     startedAt: "2026-08-30T08:00:00.000Z",
-    environment: createAvailableEnvironment(),
+    environment: environment,
     corpus: {
       version: "1.0.0",
       manifest: "corpus/phase0/manifest.json"
@@ -942,7 +945,9 @@ test("execute runs the VSTO provider as blocked and leaves unregistered provider
   assert.equal(report.checks.length, requiredChecks.length);
   assert.equal(report.checks[0].status, "blocked");
   assert.match(report.checks[0].reason, /FORMULABRIDGE_VSTO_INSTALLER/);
-  report.checks.slice(1).forEach(function (check) {
+  assert.equal(report.checks[2].status, "blocked");
+  assert.match(report.checks[2].reason, /Word is unavailable/);
+  [report.checks[1], report.checks[3]].forEach(function (check) {
     assert.equal(check.status, "not-run");
     assert.match(check.reason, /No check provider is registered/);
   });
