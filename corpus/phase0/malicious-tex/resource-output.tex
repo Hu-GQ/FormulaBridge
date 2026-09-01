@@ -2,7 +2,7 @@
 % FORMULABRIDGE_ATTACK_RESULT: no marker is expected after the output ceiling is crossed.
 \documentclass{article}
 \directlua{
-  for index = 1, 70 do
+  for index = 1, @@OUTPUT_FILE_COUNT@@ do
     local handle = assert(io.open("flood-" .. tostring(index) .. ".tmp", "wb"))
     handle:write("x")
     handle:close()

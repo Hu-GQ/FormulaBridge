@@ -2,12 +2,14 @@
 % FORMULABRIDGE_ATTACK_RESULT: no marker is expected after the output ceiling is crossed.
 \documentclass{article}
 \directlua{
-  local ceiling = 64 * 1024 * 1024
+  local target = @@OUTPUT_BYTES@@
   local chunk = string.rep("x", 1024 * 1024)
   local handle = assert(io.open("flood-bytes.tmp", "wb"))
-  for written = 0, ceiling, #chunk do
+  local written = 0
+  while written < target do
     handle:write(chunk)
     handle:flush()
+    written = written + #chunk
     local resumeAt = os.clock() + 0.02
     while os.clock() < resumeAt do end
   end

@@ -356,8 +356,10 @@ test("the versioned malicious TeX corpus covers every filesystem and LuaLaTeX ne
   });
 
   assert.match(read("corpus/phase0/malicious-tex/lualatex-file-and-network.tex"), /require,\s*["']socket["']/);
-  assert.match(read("corpus/phase0/malicious-tex/resource-output.tex"), /os\.clock/);
-  assert.match(read("corpus/phase0/malicious-tex/resource-output-bytes.tex"), /64 \* 1024 \* 1024/);
+  assert.match(read("corpus/phase0/malicious-tex/resource-output.tex"), /@@OUTPUT_FILE_COUNT@@/);
+  assert.match(read("corpus/phase0/malicious-tex/resource-output-bytes.tex"), /@@OUTPUT_BYTES@@/);
+  assert.doesNotMatch(read("corpus/phase0/malicious-tex/resource-output.tex"), /1, 70/);
+  assert.doesNotMatch(read("corpus/phase0/malicious-tex/resource-output-bytes.tex"), /64 \* 1024 \* 1024/);
   assert.match(read("corpus/phase0/malicious-tex/resource-memory.tex"), /string\.rep/);
   assert.doesNotMatch(read("corpus/phase0/malicious-tex/shell-and-process.tex"), /second\s*==\s*["']exit["']/);
 });
@@ -368,6 +370,8 @@ test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilin
   assert.match(runner, /\$benign\.texAclExplicitlyGranted/);
   assert.match(runner, /\$caseCleanupSucceeded.*profileDeleted.*aclRestored/s);
   assert.match(runner, /resource-output-bytes/);
+  assert.match(runner, /OutputFileCount \(\[int\]\$policy\.ceilings\.outputFiles \+ 1\)/);
+  assert.match(runner, /OutputBytes \(\[long\]\$policy\.ceilings\.outputBytes \+ 1\)/);
   assert.match(runner, /resource-memory/);
   assert.match(runner, /input-ceiling-probe/);
   assert.match(runner, /input-ceiling-benign.*ExactInputBytes \(\[int\]\$policy\.ceilings\.inputBytes\)/);

@@ -173,6 +173,8 @@ function Invoke-TexCase {
         [ValidateSet("interactive", "batch-item")]
         [string]$Mode = "interactive",
         [int]$ExactInputBytes = 0,
+        [int]$OutputFileCount = 0,
+        [long]$OutputBytes = 0,
         [switch]$CreateTraversalCanary,
         [switch]$CreateOutsideLinks,
         [switch]$InjectAbsoluteCanary,
@@ -228,6 +230,20 @@ function Invoke-TexCase {
         $listenerPort = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
         $acceptResult = $listener.BeginAcceptTcpClient($null, $null)
         $source = $source.Replace("@@LISTENER_PORT@@", $listenerPort.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($OutputFileCount -gt 0) {
+        $source = $source.Replace(
+            "@@OUTPUT_FILE_COUNT@@",
+            $OutputFileCount.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($OutputBytes -gt 0) {
+        $source = $source.Replace(
+            "@@OUTPUT_BYTES@@",
+            $OutputBytes.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($source.Contains("@@OUTPUT_FILE_COUNT@@", [StringComparison]::Ordinal) -or
+        $source.Contains("@@OUTPUT_BYTES@@", [StringComparison]::Ordinal)) {
+        throw "A resource probe is missing its policy-driven output ceiling"
     }
 
     Write-TexInput -Path $inputPath -Source $source -ExactInputBytes $ExactInputBytes
@@ -465,8 +481,8 @@ try {
         $luaFileNetwork = Invoke-TexCase -Id "lualatex-file-network" -CorpusPath "malicious-tex\lualatex-file-and-network.tex" -InjectAbsoluteCanary -InjectNetworkListener
         $shellProcess = Invoke-TexCase -Id "shell-process" -CorpusPath "malicious-tex\shell-and-process.tex"
         $resourceTimeout = Invoke-TexCase -Id "resource-timeout" -CorpusPath "malicious-tex\resource-exhaustion.tex" -WallClockSeconds 2 -ResourceCase
-        $resourceOutputFiles = Invoke-TexCase -Id "resource-output-files" -CorpusPath "malicious-tex\resource-output.tex" -ResourceCase
-        $resourceOutputBytes = Invoke-TexCase -Id "resource-output-bytes" -CorpusPath "malicious-tex\resource-output-bytes.tex" -ResourceCase
+        $resourceOutputFiles = Invoke-TexCase -Id "resource-output-files" -CorpusPath "malicious-tex\resource-output.tex" -OutputFileCount ([int]$policy.ceilings.outputFiles + 1) -ResourceCase
+        $resourceOutputBytes = Invoke-TexCase -Id "resource-output-bytes" -CorpusPath "malicious-tex\resource-output-bytes.tex" -OutputBytes ([long]$policy.ceilings.outputBytes + 1) -ResourceCase
         $resourceMemory = Invoke-TexCase -Id "resource-memory" -CorpusPath "malicious-tex\resource-memory.tex" -ResourceCase
         $inputCeilingBenign = Invoke-TexCase -Id "input-ceiling-benign" -CorpusPath "formula\benign-lualatex.tex" -ExactInputBytes ([int]$policy.ceilings.inputBytes) -ResourceCase
         $batchBenign = Invoke-TexCase -Id "batch-benign" -CorpusPath "formula\benign-lualatex.tex" -Mode "batch-item" -WallClockSeconds ([int]$policy.ceilings.batchItemSeconds) -ResourceCase

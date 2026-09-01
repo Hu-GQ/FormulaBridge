@@ -108,7 +108,7 @@
       "path": "malicious-tex/resource-output.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output file-count ceiling.",
-      "sha256": "8d5e8e86531f5629a7e4f4a69542c1e6807a9f3d24d037f564be3ac0030080e4"
+      "sha256": "a219b989392bdab5f944c3ff30a7d5802700b4847c5a1cb20fb0690d9464d081"
     },
     {
       "id": "malicious-tex.resource-output-bytes",
@@ -116,7 +116,7 @@
       "path": "malicious-tex/resource-output-bytes.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output byte ceiling.",
-      "sha256": "c557709d998fd0eaf1b569c9e7f1822d76ddb7368e2bdcabca10c749d6353514"
+      "sha256": "9f782979af3f3c10842c904ca304d3b4ed6a6ee21b1c4beb5ee4025d634be875"
     },
     {
       "id": "malicious-tex.resource-memory",
