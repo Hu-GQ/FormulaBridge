@@ -4,345 +4,154 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using Microsoft.Win32;
 
 namespace FormulaBridge.Diagnostics
 {
     [DataContract]
     internal sealed class DiagnosticCheck
     {
-        internal DiagnosticCheck(string id, bool passed, string reason)
-        {
-            Id = id;
-            Status = passed ? "passed" : "failed";
-            Reason = reason;
-        }
-
-        [DataMember(Name = "id", Order = 1)]
-        internal string Id { get; private set; }
-
-        [DataMember(Name = "status", Order = 2)]
-        internal string Status { get; private set; }
-
-        [DataMember(Name = "reason", Order = 3)]
-        internal string Reason { get; private set; }
+        internal DiagnosticCheck(string id, string status, string reason, string remediation)
+        { Id = id; Status = status; Reason = reason; Remediation = remediation; }
+        [DataMember(Name = "id", Order = 1)] internal string Id { get; private set; }
+        [DataMember(Name = "status", Order = 2)] internal string Status { get; private set; }
+        [DataMember(Name = "reason", Order = 3)] internal string Reason { get; private set; }
+        [DataMember(Name = "remediation", Order = 4)] internal string Remediation { get; private set; }
     }
 
     [DataContract]
     internal sealed class VstoDiagnosticReport
     {
-        [DataMember(Name = "schemaVersion", Order = 1)]
-        internal int SchemaVersion { get; set; }
-
-        [DataMember(Name = "addInId", Order = 2)]
-        internal string AddInId { get; set; }
-
-        [DataMember(Name = "status", Order = 3)]
-        internal string Status { get; set; }
-
-        [DataMember(Name = "capturedAt", Order = 4)]
-        internal string CapturedAt { get; set; }
-
-        [DataMember(Name = "checks", Order = 5)]
-        internal List<DiagnosticCheck> Checks { get; set; }
+        [DataMember(Name = "schemaVersion", Order = 1)] internal int SchemaVersion { get; set; }
+        [DataMember(Name = "addInId", Order = 2)] internal string AddInId { get; set; }
+        [DataMember(Name = "status", Order = 3)] internal string Status { get; set; }
+        [DataMember(Name = "capturedAt", Order = 4)] internal string CapturedAt { get; set; }
+        [DataMember(Name = "checks", Order = 5)] internal List<DiagnosticCheck> Checks { get; set; }
     }
 
     [DataContract]
     internal sealed class WordLoadState
     {
-        [DataMember(Name = "addInId")]
-        internal string AddInId { get; set; }
+        [DataMember(Name = "schemaVersion")] internal int SchemaVersion { get; set; }
+        [DataMember(Name = "addInId")] internal string AddInId { get; set; }
+        [DataMember(Name = "processId")] internal int ProcessId { get; set; }
+        [DataMember(Name = "addInStartedAt")] internal string AddInStartedAt { get; set; }
+        [DataMember(Name = "ribbonLoadedAt")] internal string RibbonLoadedAt { get; set; }
+    }
 
-        [DataMember(Name = "addInStartedAt")]
-        internal string AddInStartedAt { get; set; }
-
-        [DataMember(Name = "ribbonLoadedAt")]
-        internal string RibbonLoadedAt { get; set; }
+    // Observations are separated from evaluation so fault tests never mutate Office.
+    internal sealed class DiagnosticSnapshot
+    {
+        internal string WordVersion;
+        internal string WordPlatform;
+        internal string VstoVersion;
+        internal string[] WebViewVersions = new string[0];
+        internal bool RegistrationPresent;
+        internal int? LoadBehavior;
+        internal bool LocalManifestExists;
+        internal string SignatureStatus = "blocked";
+        internal bool PolicyDisables;
+        internal bool CrashListed;
+        internal bool DisabledItemMarker;
+        internal int DisabledItemCount;
+        internal WordLoadState LoadState;
+        internal bool WordProcessRunning;
+        internal DateTime WordProcessStartedAt;
+        internal DateTime Now = DateTime.UtcNow;
+        internal HashSet<string> Unavailable = new HashSet<string>(StringComparer.Ordinal);
     }
 
     internal static class VstoDiagnostics
     {
-        private const string AddInId = "FormulaBridge.WordAddIn";
-        private const string AddInRegistryPath = "Software\\Microsoft\\Office\\Word\\Addins\\FormulaBridge.WordAddIn";
-        private const string ClickToRunPath = "SOFTWARE\\Microsoft\\Office\\ClickToRun\\Configuration";
-        private const string VstoRuntimePath = "SOFTWARE\\Microsoft\\VSTO Runtime Setup\\v4R";
-        private const string VstoRuntimeWowPath = "SOFTWARE\\WOW6432Node\\Microsoft\\VSTO Runtime Setup\\v4R";
-        private const string UserResiliencyPath = "Software\\Microsoft\\Office\\16.0\\Word\\Resiliency";
-        private const string UserDisabledItemsPath = UserResiliencyPath + "\\DisabledItems";
-        private const string UserPolicyPath = "Software\\Policies\\Microsoft\\Office\\16.0\\Word\\Resiliency\\AddinList";
-        private const string MachinePolicyPath = "SOFTWARE\\Policies\\Microsoft\\Office\\16.0\\Word\\Resiliency\\AddinList";
+        internal const string AddInId = "FormulaBridge.WordAddIn";
+        internal static VstoDiagnosticReport Capture() { return Evaluate(WindowsDiagnosticProbe.Capture()); }
 
-        internal static VstoDiagnosticReport Capture()
+        internal static VstoDiagnosticReport Evaluate(DiagnosticSnapshot snapshot)
         {
             var checks = new List<DiagnosticCheck>();
-            string manifestValue;
-            int? loadBehavior;
+            Add(checks, snapshot, "word-x64", ValidVersion(snapshot.WordVersion) && snapshot.WordPlatform == "x64",
+                "Word x64 is installed.", "A supported x64 Word installation was not detected.",
+                "Install a supported x64 Word edition, then rerun diagnostics.");
+            Add(checks, snapshot, "vsto-runtime", ValidVersion(snapshot.VstoVersion),
+                "The VSTO Runtime is installed.", "The VSTO Runtime is missing or its version is invalid.",
+                "Run the separately signed VSTO prerequisite installer, then restart Word.");
+            Add(checks, snapshot, "webview2-runtime", Array.Exists(snapshot.WebViewVersions, ValidVersion),
+                "The WebView2 Evergreen Runtime is installed.", "The WebView2 Runtime is missing or its version is invalid; editing is unavailable.",
+                "Run the separately signed WebView2 prerequisite installer, then restart Word.");
+            Add(checks, snapshot, "current-user-registration", snapshot.RegistrationPresent,
+                "The current-user Word add-in registration exists.", "The current-user Word add-in registration is missing.",
+                "Run Repair from the signed FormulaBridge installer for this Windows account.");
+            Add(checks, snapshot, "local-signed-manifest", snapshot.LocalManifestExists,
+                "The registered local deployment manifest exists.", "The local deployment manifest is missing or its registration is invalid.",
+                "Close Word and repair FormulaBridge using its signed installer.");
+            string signatureStatus = snapshot.Unavailable.Contains("deployment-signatures") ? "blocked" : snapshot.SignatureStatus;
+            checks.Add(new DiagnosticCheck("deployment-signatures", signatureStatus,
+                signatureStatus == "passed" ? "Deployment and application manifests and installed binaries passed signature verification." :
+                signatureStatus == "failed" ? "A deployment signature, certificate trust check, or payload hash failed." :
+                "Signature verification could not be completed with the local trust information.",
+                signatureStatus == "passed" ? "" : "Repair from the signed installer. If trust information is unavailable, ask the administrator to restore it; do not disable signature verification."));
+            Add(checks, snapshot, "load-behavior", snapshot.LoadBehavior == 3,
+                "Word automatic loading is registered.", "LoadBehavior is missing or is not 3.",
+                "Check Word Options > Add-ins. If permitted, use the signed installer Repair action.");
+            string policyReason = snapshot.PolicyDisables ? "Office policy disables this add-in; diagnostics will not bypass policy." :
+                snapshot.CrashListed ? "Word lists this add-in as crashing; diagnostics will not force-enable it." :
+                snapshot.DisabledItemMarker ? "Word DisabledItems contains FormulaBridge; diagnostics will not force-enable it." :
+                snapshot.DisabledItemCount > 0 ? "Word contains opaque DisabledItems entries; this tool cannot safely exclude FormulaBridge." :
+                "No blocking policy or Word disabled-item entry was detected.";
+            string policyStatus = snapshot.Unavailable.Contains("resiliency-and-policy") ? "blocked" :
+                snapshot.PolicyDisables || snapshot.CrashListed || snapshot.DisabledItemMarker ? "failed" :
+                snapshot.DisabledItemCount > 0 ? "blocked" : "passed";
+            checks.Add(new DiagnosticCheck("resiliency-and-policy", policyStatus,
+                snapshot.Unavailable.Contains("resiliency-and-policy") ? "Office policy or disabled-item information could not be read." : policyReason,
+                policyStatus == "passed" ? "" : snapshot.PolicyDisables ? "Contact the Office policy administrator. This tool does not change organization policy." :
+                "Inspect Word Options > Add-ins > Disabled Items and the crash report before deciding whether to enable the add-in."));
 
-            CheckWord(checks);
-            CheckVstoRuntime(checks);
-            ReadRegistration(checks, out manifestValue, out loadBehavior);
-            CheckManifest(checks, manifestValue);
-            checks.Add(new DiagnosticCheck(
-                "load-behavior",
-                loadBehavior == 3,
-                loadBehavior == 3 ? "Word automatic loading is registered." : "LoadBehavior is missing or is not 3."));
-            CheckResiliencyAndPolicy(checks);
-            CheckLoadState(checks);
-
+            bool current = IsCurrentState(snapshot);
+            Add(checks, snapshot, "add-in-load-state", current,
+                "The VSTO startup callback belongs to the running Word process.",
+                "No current VSTO startup callback was found; Word may be closed or the saved state may be stale.",
+                "Start Word and rerun diagnostics. If the Ribbon is absent, address the preceding failures.");
+            DateTime ribbon;
+            DateTime started;
+            bool ribbonLoaded = current && ParseTime(snapshot.LoadState.RibbonLoadedAt, out ribbon) &&
+                ParseTime(snapshot.LoadState.AddInStartedAt, out started) && ribbon >= started && ribbon <= snapshot.Now;
+            Add(checks, snapshot, "ribbon-load-state", ribbonLoaded,
+                "The FormulaBridge Ribbon onLoad callback belongs to the running Word process.", "No current FormulaBridge Ribbon onLoad callback was found.",
+                "Restart Word and check the FormulaBridge tab, then rerun diagnostics.");
             return new VstoDiagnosticReport
             {
-                SchemaVersion = 1,
-                AddInId = AddInId,
-                Status = checks.TrueForAll(delegate(DiagnosticCheck check) { return check.Status == "passed"; })
-                    ? "passed"
-                    : "failed",
-                CapturedAt = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"),
-                Checks = checks
+                SchemaVersion = 1, AddInId = AddInId,
+                Status = checks.Exists(c => c.Status == "failed") ? "failed" : checks.Exists(c => c.Status == "blocked") ? "blocked" : "passed",
+                CapturedAt = snapshot.Now.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"), Checks = checks
             };
+        }
+
+        internal static bool ValidVersion(string value)
+        { Version version; return Version.TryParse(value, out version) && version > new Version(0, 0, 0, 0); }
+
+        private static bool ParseTime(string value, out DateTime time)
+        { return DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out time) && time.Kind == DateTimeKind.Utc; }
+
+        private static bool IsCurrentState(DiagnosticSnapshot snapshot)
+        {
+            DateTime started;
+            return snapshot.LoadState != null && snapshot.LoadState.SchemaVersion == 1 && snapshot.LoadState.AddInId == AddInId &&
+                snapshot.LoadState.ProcessId > 0 && snapshot.WordProcessRunning &&
+                ParseTime(snapshot.LoadState.AddInStartedAt, out started) && started >= snapshot.WordProcessStartedAt && started <= snapshot.Now;
+        }
+
+        private static void Add(List<DiagnosticCheck> checks, DiagnosticSnapshot snapshot, string id, bool passed, string success, string failure, string remediation)
+        {
+            bool unavailable = snapshot.Unavailable.Contains(id);
+            checks.Add(new DiagnosticCheck(id, unavailable ? "blocked" : passed ? "passed" : "failed",
+                unavailable ? "The required local observation could not be read." : passed ? success : failure,
+                passed && !unavailable ? "" : remediation));
         }
 
         internal static string Serialize(VstoDiagnosticReport report)
         {
             var serializer = new DataContractJsonSerializer(typeof(VstoDiagnosticReport));
-
             using (var stream = new MemoryStream())
-            {
-                serializer.WriteObject(stream, report);
-                return Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
-            }
-        }
-
-        private static void CheckWord(List<DiagnosticCheck> checks)
-        {
-            string version = null;
-            string platform = null;
-
-            using (RegistryKey key = OpenLocalMachine(ClickToRunPath, RegistryView.Registry64))
-            {
-                if (key != null)
-                {
-                    version = Convert.ToString(key.GetValue("VersionToReport"));
-                    platform = Convert.ToString(key.GetValue("Platform"));
-                }
-            }
-
-            bool passed = !string.IsNullOrWhiteSpace(version) && string.Equals(platform, "x64", StringComparison.OrdinalIgnoreCase);
-            checks.Add(new DiagnosticCheck(
-                "word-x64",
-                passed,
-                passed ? "Word x64 is installed." : "A supported x64 Word installation was not detected."));
-        }
-
-        private static void CheckVstoRuntime(List<DiagnosticCheck> checks)
-        {
-            string version = ReadRegistryString(RegistryHive.LocalMachine, RegistryView.Registry64, VstoRuntimePath, "Version")
-                ?? ReadRegistryString(RegistryHive.LocalMachine, RegistryView.Registry64, VstoRuntimeWowPath, "Version")
-                ?? ReadRegistryString(RegistryHive.LocalMachine, RegistryView.Registry32, VstoRuntimePath, "Version");
-
-            checks.Add(new DiagnosticCheck(
-                "vsto-runtime",
-                !string.IsNullOrWhiteSpace(version),
-                string.IsNullOrWhiteSpace(version) ? "The VSTO Runtime was not detected." : "The VSTO Runtime is installed."));
-        }
-
-        private static void ReadRegistration(
-            List<DiagnosticCheck> checks,
-            out string manifestValue,
-            out int? loadBehavior)
-        {
-            manifestValue = null;
-            loadBehavior = null;
-
-            using (RegistryKey key = OpenCurrentUser(AddInRegistryPath))
-            {
-                if (key != null)
-                {
-                    manifestValue = Convert.ToString(key.GetValue("Manifest"));
-                    object loadBehaviorValue = key.GetValue("LoadBehavior");
-
-                    if (loadBehaviorValue != null)
-                    {
-                        loadBehavior = Convert.ToInt32(loadBehaviorValue);
-                    }
-                }
-            }
-
-            checks.Add(new DiagnosticCheck(
-                "current-user-registration",
-                !string.IsNullOrWhiteSpace(manifestValue),
-                string.IsNullOrWhiteSpace(manifestValue)
-                    ? "The current-user Word add-in registration is missing."
-                    : "The current-user Word add-in registration exists."));
-        }
-
-        private static void CheckManifest(List<DiagnosticCheck> checks, string manifestValue)
-        {
-            string localPath = null;
-            bool localDeployment = !string.IsNullOrWhiteSpace(manifestValue) &&
-                manifestValue.StartsWith("file:///", StringComparison.OrdinalIgnoreCase) &&
-                manifestValue.EndsWith("|vstolocal", StringComparison.OrdinalIgnoreCase);
-
-            if (localDeployment)
-            {
-                string uriValue = manifestValue.Substring(0, manifestValue.Length - "|vstolocal".Length);
-                Uri uri;
-
-                if (Uri.TryCreate(uriValue, UriKind.Absolute, out uri) && uri.IsFile)
-                {
-                    localPath = uri.LocalPath;
-                }
-            }
-
-            bool passed = localDeployment && localPath != null && File.Exists(localPath);
-            checks.Add(new DiagnosticCheck(
-                "local-signed-manifest",
-                passed,
-                passed
-                    ? "The local VSTO deployment manifest exists. Signature verification is performed by the smoke runner."
-                    : "The registered local VSTO deployment manifest is missing or invalid."));
-        }
-
-        private static void CheckResiliencyAndPolicy(List<DiagnosticCheck> checks)
-        {
-            string userPolicy = ReadRegistryString(RegistryHive.CurrentUser, RegistryView.Registry64, UserPolicyPath, AddInId);
-            string machinePolicy = ReadRegistryString(RegistryHive.LocalMachine, RegistryView.Registry64, MachinePolicyPath, AddInId);
-            bool disabledByPolicy = string.Equals(userPolicy, "0", StringComparison.Ordinal) ||
-                string.Equals(machinePolicy, "0", StringComparison.Ordinal);
-            bool crashListed = RegistryValueExists(RegistryHive.CurrentUser, RegistryView.Registry64, UserResiliencyPath + "\\CrashingAddinList", AddInId);
-            int disabledItemCount;
-            bool disabledItemMarker = RegistryBinaryValuesContain(
-                RegistryHive.CurrentUser,
-                RegistryView.Registry64,
-                UserDisabledItemsPath,
-                AddInId,
-                out disabledItemCount);
-            bool disabledItemsPresent = disabledItemCount > 0;
-
-            checks.Add(new DiagnosticCheck(
-                "resiliency-and-policy",
-                !disabledByPolicy && !crashListed && !disabledItemsPresent,
-                disabledByPolicy
-                    ? "Office policy disables the add-in; diagnostics will not bypass policy."
-                    : crashListed
-                        ? "Word lists the add-in as crashing; diagnostics will not force-enable it."
-                        : disabledItemMarker
-                            ? "Word DisabledItems contains FormulaBridge; diagnostics will not force-enable it."
-                            : disabledItemsPresent
-                                ? "Word contains opaque DisabledItems entries; diagnostics cannot safely exclude FormulaBridge and will not force-enable it."
-                                : "No explicit blocking policy, crashing-add-in entry, or DisabledItems entry was detected."));
-        }
-
-        private static void CheckLoadState(List<DiagnosticCheck> checks)
-        {
-            string statePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "FormulaBridge",
-                "Phase0",
-                "word-load-state.json");
-            WordLoadState state = null;
-
-            if (File.Exists(statePath))
-            {
-                try
-                {
-                    var serializer = new DataContractJsonSerializer(typeof(WordLoadState));
-                    using (FileStream stream = File.OpenRead(statePath))
-                    {
-                        state = (WordLoadState)serializer.ReadObject(stream);
-                    }
-                }
-                catch (SerializationException)
-                {
-                }
-            }
-
-            bool addInLoaded = state != null &&
-                string.Equals(state.AddInId, AddInId, StringComparison.Ordinal) &&
-                !string.IsNullOrWhiteSpace(state.AddInStartedAt);
-            bool ribbonLoaded = addInLoaded && !string.IsNullOrWhiteSpace(state.RibbonLoadedAt);
-
-            checks.Add(new DiagnosticCheck(
-                "add-in-load-state",
-                addInLoaded,
-                addInLoaded ? "The VSTO startup callback was observed." : "No valid VSTO startup callback state was found."));
-            checks.Add(new DiagnosticCheck(
-                "ribbon-load-state",
-                ribbonLoaded,
-                ribbonLoaded ? "The FormulaBridge Ribbon onLoad callback was observed." : "No valid FormulaBridge Ribbon onLoad state was found."));
-        }
-
-        private static string ReadRegistryString(
-            RegistryHive hive,
-            RegistryView view,
-            string path,
-            string name)
-        {
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view))
-            using (RegistryKey key = baseKey.OpenSubKey(path, false))
-            {
-                return key == null ? null : Convert.ToString(key.GetValue(name));
-            }
-        }
-
-        private static bool RegistryValueExists(
-            RegistryHive hive,
-            RegistryView view,
-            string path,
-            string name)
-        {
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view))
-            using (RegistryKey key = baseKey.OpenSubKey(path, false))
-            {
-                return key != null && key.GetValue(name) != null;
-            }
-        }
-
-        private static bool RegistryBinaryValuesContain(
-            RegistryHive hive,
-            RegistryView view,
-            string path,
-            string marker,
-            out int valueCount)
-        {
-            valueCount = 0;
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view))
-            using (RegistryKey key = baseKey.OpenSubKey(path, false))
-            {
-                if (key == null)
-                {
-                    return false;
-                }
-
-                foreach (string name in key.GetValueNames())
-                {
-                    valueCount += 1;
-                    byte[] value = key.GetValue(name) as byte[];
-                    if (value == null)
-                    {
-                        continue;
-                    }
-
-                    string unicode = Encoding.Unicode.GetString(value);
-                    string ascii = Encoding.ASCII.GetString(value);
-                    if (unicode.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        ascii.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        private static RegistryKey OpenLocalMachine(string path, RegistryView view)
-        {
-            return RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view).OpenSubKey(path, false);
-        }
-
-        private static RegistryKey OpenCurrentUser(string path)
-        {
-            return RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64).OpenSubKey(path, false);
+            { serializer.WriteObject(stream, report); return Encoding.UTF8.GetString(stream.ToArray()) + "\n"; }
         }
     }
 }

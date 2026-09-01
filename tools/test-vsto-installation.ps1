@@ -45,7 +45,9 @@ $requiredAssertionIds = @(
     "diagnostics-load-state-consistency",
     "diagnostics-respects-policy",
     "diagnostics-fault-smoke",
-    "diagnostics-privacy"
+    "diagnostics-privacy",
+    "diagnostics-prerequisite-and-signature-checks",
+    "diagnostics-real-disabled-state"
 )
 $script:assertionById = [ordered]@{}
 $script:currentAssertionId = "installation-lifecycle-smoke"
@@ -499,7 +501,7 @@ function Get-RegistryPolicyFingerprint {
 }
 
 function Invoke-WordLoadProbe {
-    param([string]$Step)
+    param([string]$Step, [switch]$Diagnose)
 
     if (Test-Path -LiteralPath $statePath) {
         Remove-Item -LiteralPath $statePath -Force
@@ -555,6 +557,7 @@ function Invoke-WordLoadProbe {
         $state | Add-Member -NotePropertyName "ribbonUiVisible" -NotePropertyValue $true -Force
 
         Write-SmokeLog ("Word automatic-load probe passed after " + $Step)
+        if ($Diagnose) { Invoke-ActiveWordDiagnostics $word }
         return $state
     }
     finally {
@@ -727,6 +730,8 @@ function Write-ResultEvidence {
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $resolvedEvidenceDirectory "check-fragment.json") -Encoding utf8
 }
 
+. (Join-Path $PSScriptRoot "vsto-diagnostics-smoke.ps1")
+
 $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $workDirectory = [IO.Path]::GetFullPath((Join-Path $temporaryRoot ("FormulaBridge-VstoSmoke-" + [Guid]::NewGuid().ToString("N"))))
 $temporaryPrefix = $temporaryRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
@@ -833,62 +838,12 @@ try {
     $repairLog = Join-Path $workDirectory "repair.raw.log"
     $rawMsiLogs += $repairLog
     Invoke-Msi "repair" @("/fa", $resolvedInstallerPath) $repairLog
-    $latestLoadState = Invoke-WordLoadProbe "repair"
+    $latestLoadState = Invoke-WordLoadProbe "repair" -Diagnose
     $latestLoadState | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $wordLoadEvidencePath -Encoding utf8
     Set-Assertion "installation-lifecycle-smoke" "passed"
 
-    $installedDiagnostics = Join-Path $installDirectory "FormulaBridge.Diagnostics.exe"
-    $policyBefore = Get-RegistryPolicyFingerprint
-    $script:currentAssertionId = "diagnostics-load-state-consistency"
-    $healthyDiagnosticsPath = Join-Path $workDirectory "diagnostics-healthy.json"
-    [void](Invoke-Diagnostics $installedDiagnostics $healthyDiagnosticsPath @(0))
-    $healthyDiagnostics = Get-Content -LiteralPath $healthyDiagnosticsPath -Raw | ConvertFrom-Json
-    $loadChecks = @($healthyDiagnostics.checks | Where-Object { $_.id -in @("add-in-load-state", "ribbon-load-state") })
-    if ($healthyDiagnostics.status -ne "passed" -or $loadChecks.Count -ne 2 -or @($loadChecks | Where-Object { $_.status -ne "passed" }).Count -ne 0) {
-        Set-Assertion "diagnostics-load-state-consistency" "failed" "Diagnostics did not agree with the observed Word load state."
-        throw "Healthy diagnostics did not agree with Word load state."
-    }
-    if ($latestLoadState.addInId -ne $addInId -or -not $latestLoadState.ribbonLoadedAt) {
-        Set-Assertion "diagnostics-load-state-consistency" "failed" "The captured Word load state is incomplete."
-        throw "The captured Word load state is incomplete."
-    }
-    Set-Assertion "diagnostics-load-state-consistency" "passed"
-
-    $script:currentAssertionId = "diagnostics-failure-detection"
-    $stateBackup = Join-Path $workDirectory "word-load-state.backup.json"
-    Copy-Item -LiteralPath $statePath -Destination $stateBackup
-    Remove-Item -LiteralPath $statePath -Force
-    $missingStateDiagnosticsPath = Join-Path $workDirectory "diagnostics-missing-state.json"
-    [void](Invoke-Diagnostics $installedDiagnostics $missingStateDiagnosticsPath @(1))
-    $missingStateDiagnostics = Get-Content -LiteralPath $missingStateDiagnosticsPath -Raw | ConvertFrom-Json
-    if (@($missingStateDiagnostics.checks | Where-Object { $_.id -eq "ribbon-load-state" -and $_.status -eq "failed" }).Count -ne 1) {
-        Set-Assertion "diagnostics-failure-detection" "failed" "Diagnostics did not detect missing Ribbon load state."
-        throw "Diagnostics did not detect missing Ribbon load state."
-    }
-    Set-Assertion "diagnostics-failure-detection" "passed"
-    Copy-Item -LiteralPath $stateBackup -Destination $statePath -Force
-
-    $script:currentAssertionId = "diagnostics-fault-smoke"
-    Set-Content -LiteralPath $statePath -Value "{ malformed load state" -Encoding utf8
-    $malformedStateDiagnosticsPath = Join-Path $workDirectory "diagnostics-malformed-state.json"
-    [void](Invoke-Diagnostics $installedDiagnostics $malformedStateDiagnosticsPath @(1))
-    $malformedStateDiagnostics = Get-Content -LiteralPath $malformedStateDiagnosticsPath -Raw | ConvertFrom-Json
-    if (@($malformedStateDiagnostics.checks | Where-Object { $_.id -eq "ribbon-load-state" -and $_.status -eq "failed" }).Count -ne 1) {
-        Set-Assertion "diagnostics-fault-smoke" "failed" "Diagnostics did not reject malformed load state."
-        throw "Diagnostics did not reject malformed load state."
-    }
-    Set-Assertion "diagnostics-fault-smoke" "passed"
-    Copy-Item -LiteralPath $stateBackup -Destination $statePath -Force
-
-    $script:currentAssertionId = "diagnostics-respects-policy"
-    $policyAfter = Get-RegistryPolicyFingerprint
-    if ($policyBefore -ne $policyAfter) {
-        Set-Assertion "diagnostics-respects-policy" "failed" "Diagnostics modified Office resiliency or policy state."
-        throw "Diagnostics modified Office resiliency or policy state."
-    }
-    Set-Assertion "diagnostics-respects-policy" "passed"
-
-    [void](Invoke-Diagnostics $installedDiagnostics $diagnosticsEvidencePath @(0))
+    Invoke-DisabledWordDiagnostics
+    [void](Invoke-WordLoadProbe "diagnostics-recovery" -Diagnose)
 
     $uninstallLog = Join-Path $workDirectory "uninstall.raw.log"
     $rawMsiLogs += $uninstallLog

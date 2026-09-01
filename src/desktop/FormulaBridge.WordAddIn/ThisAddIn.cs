@@ -12,6 +12,7 @@ namespace FormulaBridge.WordAddIn
 
         private void ThisAddIn_Shutdown(object sender, EventArgs e)
         {
+            WordLoadState.RecordStopped();
         }
 
         protected override Office.IRibbonExtensibility CreateRibbonExtensibilityObject()

@@ -5,7 +5,7 @@
 ## 组成
 
 - `src/desktop/FormulaBridge.WordAddIn`：.NET Framework 4.8 / x64 VSTO Word 加载项，只提供最小 Ribbon。VSTO startup 与 Ribbon `onLoad` 回调把状态原子写入 `%LOCALAPPDATA%\FormulaBridge\Phase0\word-load-state.json`，不访问 Word 文档内容。
-- `src/desktop/FormulaBridge.Diagnostics`：只读外部诊断 EXE，检查 x64 Word、VSTO Runtime、HKCU 加载注册、`LoadBehavior=3`、本地 `|vstolocal` 清单、Office policy、`CrashingAddinList`/`DisabledItems`，以及 startup/Ribbon 加载状态；它只报告问题，不强制启用加载项或绕过组织策略。
+- `src/desktop/FormulaBridge.Diagnostics`：只读外部诊断 EXE，检查 x64 Word、VSTO Runtime、HKCU 加载注册、`LoadBehavior=3`、本地 `|vstolocal` 清单、Office policy、`CrashingAddinList`/`DisabledItems`，WebView2、清单与二进制签名，以及当前 WINWORD 进程的 startup/Ribbon 加载状态；它只报告问题，不强制启用加载项或绕过组织策略。
 - `installer/FormulaBridge.Installer/Package.wxs`：WiX Toolset 4 per-user MSI，安装到当前用户的 Local AppData，只在 HKCU 注册 Word 加载项。卸载删除程序、加载注册和样机加载状态。
 - `tools/build-vsto-installation.ps1`：构建、签名、重新计算 VSTO 清单哈希、验证签名并生成 MSI。
 - `tools/test-vsto-installation.ps1`：在专用干净 Windows 账户中执行安装生命周期与故障诊断 smoke，并生成固定证据树。
@@ -77,7 +77,7 @@ $env:FORMULABRIDGE_VSTO_TRUST_LEVEL = "test"
 npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase0-run\report
 ```
 
-`execution.json` 的格式、运行时清单和 corpus 引用见[阶段 0 证据基线](phase0-evidence.md)。provider 会把该输入的 commit 传给 smoke，并拒绝 build metadata 指向其他 commit 的产物。如果工具不在 `PATH`，可选地设置 `FORMULABRIDGE_SIGNTOOL`、`FORMULABRIDGE_MAGE` 与 `FORMULABRIDGE_PWSH`。统一执行后仍只有 `vsto-installation` 由本 ticket 的 provider 运行，未配置 provider 的其他阶段 0 检查保持 `not-run`。
+`execution.json` 的格式、运行时清单和 corpus 引用见[阶段 0 证据基线](phase0-evidence.md)。provider 会把该输入的 commit 传给 smoke，并拒绝 build metadata 指向其他 commit 的产物。如果工具不在 `PATH`，可选地设置 `FORMULABRIDGE_SIGNTOOL`、`FORMULABRIDGE_MAGE` 与 `FORMULABRIDGE_PWSH`。统一入口还会运行已经注册的普通复制、双格式往返和 TeX 隔离 provider；所有必需检查均通过后整体报告才能通过。
 
 ## 证据
 
@@ -108,3 +108,5 @@ npm run phase0 -- execute --input C:\phase0-run\execution.json --output C:\phase
 - [Microsoft：Sign Office solutions](https://learn.microsoft.com/en-us/visualstudio/vsto/how-to-sign-office-solutions)
 - [WiX：Package Scope](https://docs.firegiant.com/wix/schema/wxs/packagescopetype/)
 - [WiX：wix build command](https://docs.firegiant.com/wix/tools/wixexe/)
+
+Issue #3 的当前加载状态、独立签名验证和健康/禁用实机流程见[外部诊断说明](vsto-diagnostics.md)。

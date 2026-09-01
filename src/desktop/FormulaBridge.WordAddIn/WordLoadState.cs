@@ -32,6 +32,16 @@ namespace FormulaBridge.WordAddIn
             }
         }
 
+        internal static void RecordStopped()
+        {
+            lock (SyncRoot)
+            {
+                addInStartedAt = null;
+                ribbonLoadedAt = null;
+                Write();
+            }
+        }
+
         private static string UtcNow()
         {
             return DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);

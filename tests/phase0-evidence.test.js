@@ -491,7 +491,7 @@ test("the versioned check set fixes all four Phase 0 spikes and their evidence c
   var checkSet = JSON.parse(fs.readFileSync(checkSetPath, "utf8"));
 
   assert.equal(checkSet.schemaVersion, 1);
-  assert.equal(checkSet.checkSetVersion, "1.5.0");
+  assert.equal(checkSet.checkSetVersion, "1.6.0");
   assert.deepEqual(checkSet.checks.map(function (check) {
     return check.id;
   }), [

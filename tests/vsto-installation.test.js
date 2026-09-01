@@ -39,6 +39,7 @@ test("the Word add-in publishes a signed VSTO Ribbon and an external load-state 
   assert.match(project, /<SignManifests>true<\/SignManifests>/);
   assert.match(project, /Microsoft\.VisualStudio\.Tools\.Office\.targets/);
   assert.match(addIn, /CreateRibbonExtensibilityObject/);
+  assert.match(addIn, /WordLoadState\.RecordStopped/);
   assert.doesNotMatch([addIn, ribbonCode, loadState].join("\n"), /ActiveDocument|Documents\.|Documents\[/);
   assert.match(ribbonXml, /<tab id="FormulaBridge\.Tab" label="FormulaBridge">/);
   assert.match(ribbonXml, /onLoad="Ribbon_Load"/);
@@ -51,7 +52,7 @@ test("the Word add-in publishes a signed VSTO Ribbon and an external load-state 
 test("external diagnostics report registration, prerequisites, policy, and Ribbon load without documents", function () {
   var project = read("src/desktop/FormulaBridge.Diagnostics/FormulaBridge.Diagnostics.csproj");
   var program = read("src/desktop/FormulaBridge.Diagnostics/Program.cs");
-  var diagnostics = read("src/desktop/FormulaBridge.Diagnostics/VstoDiagnostics.cs");
+  var diagnostics = read("src/desktop/FormulaBridge.Diagnostics/VstoDiagnostics.cs") + read("src/desktop/FormulaBridge.Diagnostics/WindowsDiagnosticProbe.cs");
 
   assert.match(project, /<TargetFrameworkVersion>v4\.8<\/TargetFrameworkVersion>/);
   assert.match(project, /<OutputType>Exe<\/OutputType>/);
@@ -60,7 +61,7 @@ test("external diagnostics report registration, prerequisites, policy, and Ribbo
   assert.match(diagnostics, /Resiliency/);
   assert.match(diagnostics, /DisabledItems/);
   assert.match(diagnostics, /Encoding\.Unicode/);
-  assert.match(diagnostics, /disabledItemCount\s*>\s*0/);
+  assert.match(diagnostics, /DisabledItemCount\s*>\s*0/);
   assert.match(diagnostics, /opaque DisabledItems entr/);
   assert.match(diagnostics, /word-load-state\.json/);
   assert.match(diagnostics, /ribbonLoadedAt/);
@@ -95,7 +96,7 @@ test("the build pipeline signs and verifies every FormulaBridge deployment artif
 });
 
 test("the smoke runner covers the installation lifecycle and emits the pinned VSTO evidence contract", function () {
-  var smoke = read("tools/test-vsto-installation.ps1");
+  var smoke = read("tools/test-vsto-installation.ps1") + read("tools/vsto-diagnostics-smoke.ps1");
   var checkSet = JSON.parse(read("phase0/checks.json"));
   var definition = checkSet.checks.find(function (check) {
     return check.id === "vsto-installation";

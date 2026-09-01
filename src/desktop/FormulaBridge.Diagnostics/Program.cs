@@ -26,9 +26,9 @@ namespace FormulaBridge.Diagnostics
                 Console.Out.Write(json);
                 return report.Status == "passed" ? 0 : 1;
             }
-            catch (Exception error)
+            catch (Exception)
             {
-                Console.Error.WriteLine("FormulaBridge diagnostics: " + error.Message);
+                Console.Error.WriteLine("FormulaBridge diagnostics could not complete. Check the output destination and local access permissions.");
                 return 2;
             }
         }

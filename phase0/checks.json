@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkSetVersion": "1.5.0",
+  "checkSetVersion": "1.6.0",
   "requiredRuntimes": [
     "Node.js",
     ".NET Framework",
@@ -34,7 +34,9 @@
         "diagnostics-load-state-consistency",
         "diagnostics-respects-policy",
         "diagnostics-fault-smoke",
-        "diagnostics-privacy"
+        "diagnostics-privacy",
+        "diagnostics-prerequisite-and-signature-checks",
+        "diagnostics-real-disabled-state"
       ]
     },
     {
