@@ -2,7 +2,8 @@
 % FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
 \documentclass{article}
 \directlua{
-  local fileHandle = io.open([[@@ABSOLUTE_CANARY@@]], "rb")
+  local fileOpenOk, fileHandle = pcall(io.open, [[@@ABSOLUTE_CANARY@@]], "rb")
+  if not fileOpenOk then fileHandle = nil end
   local moduleOk, socket = pcall(require,"socket")
   local connected = false
   if moduleOk then

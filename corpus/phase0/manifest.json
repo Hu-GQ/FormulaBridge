@@ -44,7 +44,7 @@
       "path": "malicious-tex/absolute-path.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX attempt to read an absolute canary path outside controlled roots.",
-      "sha256": "9149b695f8251d194f7dddd069d55e80e9bcdbeadc3fe7198882cb75a0af167a"
+      "sha256": "cac91495c28aae3850daa1e0eec0ca6e3cef48adac907c733fc187496c379dbe"
     },
     {
       "id": "malicious-tex.write-outside",
@@ -52,7 +52,7 @@
       "path": "malicious-tex/write-outside.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX attempt to write outside the controlled output directory.",
-      "sha256": "5e1bbd1101d0b7cd63978dc2c7def7c8009db81f74009c4af88698b869327a07"
+      "sha256": "02fb360d6d44b8f32dc2eb05856171d410e9258b8a194fbf2d6e88929ecc397a"
     },
     {
       "id": "malicious-tex.environment-variable",
@@ -84,7 +84,7 @@
       "path": "malicious-tex/lualatex-file-and-network.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX attempt to read an outside canary and connect to a controlled listener.",
-      "sha256": "4d9a39e36a1d6eee1b51e3632f9c04a48410d1426c44b361bb5c9aeeb20965a3"
+      "sha256": "ebf8c087ea22b8f75e82ab8f9ea3eace5ae3689f6abe90d205e9aad2fb00d097"
     },
     {
       "id": "malicious-tex.shell-and-process",
@@ -116,7 +116,7 @@
       "path": "malicious-tex/resource-output-bytes.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX output flood used to prove the immutable output byte ceiling.",
-      "sha256": "9f782979af3f3c10842c904ca304d3b4ed6a6ee21b1c4beb5ee4025d634be875"
+      "sha256": "d8cce475c4e934facddba143c089d3670fdb1fcc2867e3a7002c3daa8eec0b66"
     },
     {
       "id": "malicious-tex.resource-memory",
@@ -124,7 +124,7 @@
       "path": "malicious-tex/resource-memory.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX allocation loop used to prove the immutable Job Object memory ceiling.",
-      "sha256": "f1047f2d024fb3696353d1d8d2b9c51fc7dc1dd40d7e895a28570eec2df84bf2"
+      "sha256": "91613df3e3e25148af898bf8111d2613a0432cee084d06a04ae197c687cd4c13"
     },
     {
       "id": "malicious-tex.resource-cancellation",

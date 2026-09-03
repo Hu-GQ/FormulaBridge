@@ -2,8 +2,10 @@
 % FORMULABRIDGE_ATTACK_RESULT: attack-result.txt
 \documentclass{article}
 \directlua{
-  local jobHandle = io.open("../outside-write.txt", "wb")
-  local absoluteHandle = io.open([[@@ABSOLUTE_WRITE@@]], "wb")
+  local jobOpenOk, jobHandle = pcall(io.open, "../outside-write.txt", "wb")
+  if not jobOpenOk then jobHandle = nil end
+  local absoluteOpenOk, absoluteHandle = pcall(io.open, [[@@ABSOLUTE_WRITE@@]], "wb")
+  if not absoluteOpenOk then absoluteHandle = nil end
   local result = assert(io.open("attack-result.txt", "wb"))
   result:write((jobHandle or absoluteHandle) and "escaped" or "blocked")
   if jobHandle then jobHandle:write("escaped"); jobHandle:close() end

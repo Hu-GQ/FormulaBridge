@@ -9,7 +9,7 @@
   while written < target do
     handle:write(chunk)
     handle:flush()
-    written = written + #chunk
+    written = written + 1024 * 1024
     local resumeAt = os.clock() + 0.02
     while os.clock() < resumeAt do end
   end

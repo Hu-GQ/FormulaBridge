@@ -286,6 +286,8 @@ function Invoke-TexCase {
             aclRestored = $false
             texAclExplicitlyGranted = $false
             peakJobMemoryBytes = $null
+            observedOutputBytes = 0
+            observedOutputFiles = 0
             limits = $null
         }
     }
@@ -331,6 +333,8 @@ function Invoke-TexCase {
         aclRestored = $runner.aclRestored
         texAclExplicitlyGranted = $runner.texAclExplicitlyGranted
         peakJobMemoryBytes = $runner.peakJobMemoryBytes
+        observedOutputBytes = $runner.observedOutputBytes
+        observedOutputFiles = $runner.observedOutputFiles
         inputBytes = (Get-Item -LiteralPath $inputPath).Length
         outsideWriteArtifact = $outsideWriteArtifact
     }
@@ -541,7 +545,9 @@ try {
             $batchCeilingProbe.runnerCode -eq "wall-clock-ceiling-exceeded"
         if ($resourceTimeout.runnerStatus -eq "terminated" -and $resourceTimeout.timedOut -and
             $resourceOutputFiles.runnerStatus -eq "terminated" -and $resourceOutputFiles.outputLimitExceeded -and
+            $resourceOutputFiles.observedOutputFiles -gt [long]$resourceOutputFiles.limits.outputFiles -and
             $resourceOutputBytes.runnerStatus -eq "terminated" -and $resourceOutputBytes.outputLimitExceeded -and
+            $resourceOutputBytes.observedOutputBytes -gt [long]$resourceOutputBytes.limits.outputBytes -and
             $memoryCeilingObserved -and $requestCeilingsObserved -and
             -not $shellProcess.shellOrProcessArtifact) {
             Set-Assertion "resource-and-process-limits" "passed" ""

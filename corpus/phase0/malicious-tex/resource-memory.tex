@@ -4,7 +4,7 @@
 \directlua{
   local chunks = {}
   while true do
-    chunks[#chunks + 1] = string.rep("x", 16 * 1024 * 1024)
+    table.insert(chunks, string.rep("x", 16 * 1024 * 1024))
   end
 }
 \begin{document}memory exhaustion probe\end{document}
