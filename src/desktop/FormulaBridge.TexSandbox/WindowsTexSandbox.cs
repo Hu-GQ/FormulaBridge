@@ -183,6 +183,8 @@ internal static class WindowsTexSandbox
         var code = "sandbox-internal-error";
         var stage = "sandbox-init";
         FileSystemAccessRule? texRule = null;
+        var texAncestorRules = new List<(string DirectoryPath, FileSystemAccessRule Rule)>();
+        var protectedTexSubtreeRules = new List<(string DirectoryPath, FileSystemAccessRule Rule)>();
         FileSystemAccessRule? jobRule = null;
         FileSystemAccessRule? outputRule = null;
         SecurityIdentifier? appContainerIdentity = null;
@@ -230,11 +232,21 @@ internal static class WindowsTexSandbox
                     configuration.TexRoot,
                     appContainerIdentity,
                     FileSystemRights.ReadAndExecute | FileSystemRights.Synchronize);
+                stage = "tex-ancestor-acl-grant";
+                GrantAncestorLookupAccess(
+                    configuration.TexRoot,
+                    appContainerIdentity,
+                    texAncestorRules);
+                stage = "tex-protected-subtree-acl-grant";
+                GrantProtectedTexSubtreeAccess(
+                    configuration.TexRoot,
+                    appContainerIdentity,
+                    protectedTexSubtreeRules);
                 texAclExplicitlyGranted = true;
             }
             catch (UnauthorizedAccessException)
             {
-                texRule = null;
+                // Keep every successfully recorded rule so the failure path can restore it below.
             }
             stage = "job-acl-grant";
             jobRule = GrantDirectoryAccess(
@@ -506,7 +518,15 @@ internal static class WindowsTexSandbox
 
             aclRestored &= RemoveDirectoryAccess(configuration.OutputDirectory, outputRule);
             aclRestored &= RemoveDirectoryAccess(configuration.JobRoot, jobRule);
+            foreach (var grant in protectedTexSubtreeRules.AsEnumerable().Reverse())
+            {
+                aclRestored &= RemoveDirectoryAccess(grant.DirectoryPath, grant.Rule);
+            }
             aclRestored &= RemoveDirectoryAccess(configuration.TexRoot, texRule);
+            foreach (var grant in texAncestorRules.AsEnumerable().Reverse())
+            {
+                aclRestored &= RemoveDirectoryAccess(grant.DirectoryPath, grant.Rule);
+            }
 
             if (profileCreated)
             {
@@ -628,6 +648,69 @@ internal static class WindowsTexSandbox
         security.AddAccessRule(rule);
         directory.SetAccessControl(security);
         return rule;
+    }
+
+    private static void GrantAncestorLookupAccess(
+        string texRoot,
+        SecurityIdentifier identity,
+        List<(string DirectoryPath, FileSystemAccessRule Rule)> grants)
+    {
+        var ancestors = new Stack<string>();
+        for (var ancestor = Directory.GetParent(texRoot); ancestor is not null; ancestor = ancestor.Parent)
+        {
+            ancestors.Push(ancestor.FullName);
+        }
+
+        while (ancestors.TryPop(out var directoryPath))
+        {
+            grants.Add((directoryPath, GrantDirectoryLookupAccess(directoryPath, identity)));
+        }
+    }
+
+    private static FileSystemAccessRule GrantDirectoryLookupAccess(
+        string directoryPath,
+        SecurityIdentifier identity)
+    {
+        var directory = new DirectoryInfo(directoryPath);
+        var security = directory.GetAccessControl(AccessControlSections.Access);
+        var rule = new FileSystemAccessRule(
+            identity,
+            FileSystemRights.ListDirectory |
+                FileSystemRights.Synchronize,
+            InheritanceFlags.None,
+            PropagationFlags.None,
+            AccessControlType.Allow);
+
+        security.AddAccessRule(rule);
+        directory.SetAccessControl(security);
+        return rule;
+    }
+
+    private static void GrantProtectedTexSubtreeAccess(
+        string texRoot,
+        SecurityIdentifier identity,
+        List<(string DirectoryPath, FileSystemAccessRule Rule)> grants)
+    {
+        foreach (var subtreeName in new[] { "texmf-var", "texmf-config" })
+        {
+            var directoryPath = Path.Combine(texRoot, subtreeName);
+            if (!Directory.Exists(directoryPath))
+            {
+                continue;
+            }
+
+            var security = new DirectoryInfo(directoryPath)
+                .GetAccessControl(AccessControlSections.Access);
+            if (!security.AreAccessRulesProtected)
+            {
+                continue;
+            }
+
+            grants.Add((directoryPath, GrantDirectoryAccess(
+                directoryPath,
+                identity,
+                FileSystemRights.ReadAndExecute | FileSystemRights.Synchronize)));
+        }
     }
 
     private static bool RemoveDirectoryAccess(string directoryPath, FileSystemAccessRule? rule)
@@ -827,8 +910,11 @@ internal static class WindowsTexSandbox
             ["SystemDrive"] = Path.GetPathRoot(systemRoot) ?? @"C:\",
             ["SystemRoot"] = systemRoot,
             ["TEMP"] = configuration.OutputDirectory,
+            ["TEXMFCACHE"] = configuration.OutputDirectory,
+            ["TEXMFCONFIG"] = configuration.OutputDirectory,
             ["TEXINPUTS"] = configuration.JobRoot + ";",
             ["TEXMFOUTPUT"] = configuration.OutputDirectory,
+            ["TEXMFVAR"] = configuration.OutputDirectory,
             ["TMP"] = configuration.OutputDirectory,
             ["USERPROFILE"] = configuration.OutputDirectory
         };

@@ -6,6 +6,8 @@
 
 宿主使用 .NET 10 的 x64 Windows helper。每个探针创建全新的 AppContainer profile，不授予任何网络 capability；给 profile SID 仅添加 TeX 根的读取/执行 ACL、随机作业根的读取 ACL和输出目录的修改 ACL。可执行文件必须是本地配置批准的 `lualatex.exe`，位于批准 TeX 根内且 SHA-256 与 `FORMULABRIDGE_TEX_ENGINE_SHA256` 一致。
 
+Windows 版 LuaTeX 会逐级枚举可执行文件路径来取得长文件名。helper 因此在 TeX 根的每一级祖先目录添加不继承的目录条目查询 ACL；这只允许枚举祖先目录名称，不授予祖先中文件的读取权限。TeX Live 的 `texmf-var` 或 `texmf-config` 如果阻断 ACL 继承，helper 会直接补充相同的临时读取 ACL。Luaotfload 的可写缓存、用户变量树和用户配置通过 `TEXMFCACHE`、`TEXMFVAR`、`TEXMFCONFIG` 固定到受控输出目录。上述 ACL 与 AppContainer profile 一并在每个 case 结束时逆序删除，任一恢复失败都会使检查失败。
+
 进程以清洗后的固定环境和 `--no-shell-escape --interaction=nonstopmode --halt-on-error` 参数挂起创建。宿主核验 AppContainer token 及零 capability，配置只允许一个活动进程、1 GiB 内存并关闭即终止的 Job Object，把进程加入 Job Object 后才恢复线程。宿主另行强制 30 秒交互墙钟、120 秒批项上限，以及最多 64 个、合计 64 MiB 的输出文件；进程退出时仍执行一次最终输出计量。
 
 运行前拒绝位于受控根外的输入、输出或可执行文件，拒绝受信路径上的 link、junction 和 reparse point。对抗探针还分别尝试从输出目录写入只读作业根和沙箱外路径，并同时覆盖 junction 与文件 symbolic link。运行后重新核验引擎身份，恢复每个 case 的临时 ACL，删除各自的 AppContainer profile 及其临时私有存储，并删除全部随机作业目录。任一 token、Job Object、ACL、身份、资源限制、清理或证据隐私条件不成立，检查都不能成为 `passed`。

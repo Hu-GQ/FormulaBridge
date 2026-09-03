@@ -410,6 +410,28 @@ test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilin
   assert.match(runner, /SymbolicLink/);
 });
 
+test("the Windows sandbox grants only temporary TeX ancestor lookup and redirects writable TeX state", function () {
+  var sandbox = read("src/desktop/FormulaBridge.TexSandbox/WindowsTexSandbox.cs");
+  var lookupGrant = sandbox.slice(
+    sandbox.indexOf("private static FileSystemAccessRule GrantDirectoryLookupAccess"),
+    sandbox.indexOf("private static void GrantProtectedTexSubtreeAccess")
+  );
+
+  assert.match(sandbox, /GrantAncestorLookupAccess/);
+  assert.match(lookupGrant, /FileSystemRights\.ListDirectory/);
+  assert.match(lookupGrant, /FileSystemRights\.Synchronize/);
+  assert.match(lookupGrant, /InheritanceFlags\.None/);
+  assert.doesNotMatch(lookupGrant, /ReadAndExecute|Modify|FullControl|ReadPermissions|ReadAttributes/);
+  assert.match(sandbox, /GrantProtectedTexSubtreeAccess/);
+  assert.match(sandbox, /new\[\] \{ "texmf-var", "texmf-config" \}/);
+  assert.match(sandbox, /protectedTexSubtreeRules\.AsEnumerable\(\)\.Reverse\(\)/);
+  assert.match(sandbox, /texAncestorRules\.AsEnumerable\(\)\.Reverse\(\)/);
+  assert.doesNotMatch(sandbox, /catch \(UnauthorizedAccessException\)\s*\{\s*texRule = null/);
+  assert.match(sandbox, /\["TEXMFCACHE"\] = configuration\.OutputDirectory/);
+  assert.match(sandbox, /\["TEXMFCONFIG"\] = configuration\.OutputDirectory/);
+  assert.match(sandbox, /\["TEXMFVAR"\] = configuration\.OutputDirectory/);
+});
+
 test("the TeX isolation spike documents repeatable build, smoke, evidence, and fail-closed boundaries", function () {
   var packageJson = JSON.parse(read("package.json"));
   var readme = read("README.md");
@@ -426,6 +448,8 @@ test("the TeX isolation spike documents repeatable build, smoke, evidence, and f
   assert.match(readme, /阶段 0 TeX 隔离样机/);
   assert.match(documentation, /Windows 11 x64/);
   assert.match(documentation, /AppContainer.*Job Object.*ACL/s);
+  assert.match(documentation, /祖先目录.*不继承.*目录条目查询 ACL/s);
+  assert.match(documentation, /TEXMFCACHE.*TEXMFVAR.*TEXMFCONFIG/s);
   assert.match(documentation, /FORMULABRIDGE_TEX_ENGINE_SHA256/);
   assert.match(documentation, /evidence\/tex-isolation\/security-trace\/security-trace\.json/);
   assert.match(documentation, /不能.*passed/);
