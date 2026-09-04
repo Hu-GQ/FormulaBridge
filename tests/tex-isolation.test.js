@@ -414,6 +414,8 @@ test("the smoke runner fails closed on ACL, profile cleanup, all resource ceilin
   assert.match(runner, /peakJobMemoryBytes/);
   assert.match(runner, /observedOutputBytes = \$runner\.observedOutputBytes/);
   assert.match(runner, /observedOutputFiles = \$runner\.observedOutputFiles/);
+  assert.equal(runner.includes("$canaryPath.Replace('\\', '/')"), true);
+  assert.equal(runner.includes("$outsideWritePath.Replace('\\', '/')"), true);
   assert.match(runner, /uncPathPattern/);
   assert.match(runner, /SymbolicLink/);
 });

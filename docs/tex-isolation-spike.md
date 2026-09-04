@@ -41,7 +41,7 @@ npm run tex:smoke -- `
 
 ## 对抗语料与判定
 
-版本化 corpus 包含正常公式，以及相对遍历、绝对路径、受控输出外写入、父进程环境、Kpathsea 搜索路径、junction/symbolic-link reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环、文件数洪泛、字节洪泛和内存分配探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary、写出受控位置或连接 listener。Lua 文件探针用 `pcall` 捕获操作系统拒绝，使预期的访问拒绝不会提前终止标记写入；资源探针使用不受 TeX `#` 参数字符处理影响的固定计数和 `table.insert`。墙钟、文件数和字节探针必须在运行中被宿主终止，内存探针必须以 Job Object 记录的不超过 1 GiB 峰值失败。runner 还必须用良性公式证明恰好 256 KiB 的输入和恰好 120 秒的 batch-item 策略可运行，并证明超过 256 KiB 的输入与超过 120 秒的 batch-item 请求在启动 TeX 前被拒绝。runner 从 helper 的 `describe-policy` 读取这些权威上限，探针和归档资源报告不另行复制策略常量，并记录每个资源 case 实际观察到的输出文件数和字节数。
+版本化 corpus 包含正常公式，以及相对遍历、绝对路径、受控输出外写入、父进程环境、Kpathsea 搜索路径、junction/symbolic-link reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环、文件数洪泛、字节洪泛和内存分配探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary、写出受控位置或连接 listener。runner 将注入 `\directlua` 的 Windows 绝对路径规范为 Lua 和 Windows 都接受的正斜杠形式，避免反斜杠先被 TeX 当作控制序列；Lua 文件探针用 `pcall` 捕获操作系统拒绝，使预期的访问拒绝不会提前终止标记写入；资源探针使用不受 TeX `#` 参数字符处理影响的固定计数和 `table.insert`。墙钟、文件数和字节探针必须在运行中被宿主终止，内存探针必须以 Job Object 记录的不超过 1 GiB 峰值失败。runner 还必须用良性公式证明恰好 256 KiB 的输入和恰好 120 秒的 batch-item 策略可运行，并证明超过 256 KiB 的输入与超过 120 秒的 batch-item 请求在启动 TeX 前被拒绝。runner 从 helper 的 `describe-policy` 读取这些权威上限，探针和归档资源报告不另行复制策略常量，并记录每个资源 case 实际观察到的输出文件数和字节数。
 
 只要正常公式无法在完整 AppContainer + Job Object + ACL 策略下运行，后续恶意探针就不会被误当作成功。探针运行失败、未运行、机制不可用或证据不全都不能产生 `passed`。
 

@@ -221,13 +221,13 @@ function Invoke-TexCase {
         if ($canaryPath.Contains("]]", [StringComparison]::Ordinal)) {
             throw "Generated canary path cannot be embedded safely"
         }
-        $source = $source.Replace("@@ABSOLUTE_CANARY@@", $canaryPath)
+        $source = $source.Replace("@@ABSOLUTE_CANARY@@", $canaryPath.Replace('\', '/'))
     }
     if ($InjectAbsoluteWrite) {
         if ($outsideWritePath.Contains("]]", [StringComparison]::Ordinal)) {
             throw "Generated outside write path cannot be embedded safely"
         }
-        $source = $source.Replace("@@ABSOLUTE_WRITE@@", $outsideWritePath)
+        $source = $source.Replace("@@ABSOLUTE_WRITE@@", $outsideWritePath.Replace('\', '/'))
     }
     if ($InjectNetworkListener) {
         $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
