@@ -8,7 +8,7 @@
 
 Windows 版 LuaTeX 会逐级枚举可执行文件路径来取得长文件名。helper 因此在 TeX 根的每一级祖先目录添加不继承的目录条目查询 ACL；这只允许枚举祖先目录名称，不授予祖先中文件的读取权限。TeX Live 的 `texmf-var` 或 `texmf-config` 如果阻断 ACL 继承，helper 会直接补充相同的临时读取 ACL。Luaotfload 的可写缓存、用户变量树和用户配置通过 `TEXMFCACHE`、`TEXMFVAR`、`TEXMFCONFIG` 固定到受控输出目录。上述 ACL 与 AppContainer profile 一并在每个 case 结束时逆序删除，任一恢复失败都会使检查失败。
 
-进程以清洗后的固定环境和 `--no-shell-escape --interaction=nonstopmode --halt-on-error` 参数挂起创建。宿主核验 AppContainer token 及零 capability，配置只允许一个活动进程、1 GiB 内存并关闭即终止的 Job Object，把进程加入 Job Object 后才恢复线程。宿主另行强制 30 秒交互墙钟、120 秒批项上限，以及最多 64 个、合计 64 MiB 的输出文件；进程退出时仍执行一次最终输出计量。
+进程以清洗后的固定环境和 `--no-shell-escape --nosocket --interaction=nonstopmode --halt-on-error` 参数挂起创建。宿主核验 AppContainer token 及零 capability，配置只允许一个活动进程、1 GiB 内存并关闭即终止的 Job Object，把进程加入 Job Object 后才恢复线程。宿主另行强制 30 秒交互墙钟、120 秒批项上限，以及最多 64 个、合计 64 MiB 的输出文件；进程退出时仍执行一次最终输出计量。
 
 运行前拒绝位于受控根外的输入、输出或可执行文件，拒绝受信路径上的 link、junction 和 reparse point。对抗探针还分别尝试从输出目录写入只读作业根和沙箱外路径，并同时覆盖 junction 与文件 symbolic link。运行后重新核验引擎身份，恢复每个 case 的临时 ACL，删除各自的 AppContainer profile 及其临时私有存储，并删除全部随机作业目录。任一 token、Job Object、ACL、身份、资源限制、清理或证据隐私条件不成立，检查都不能成为 `passed`。
 
@@ -41,7 +41,7 @@ npm run tex:smoke -- `
 
 ## 对抗语料与判定
 
-版本化 corpus 包含正常公式，以及相对遍历、绝对路径、受控输出外写入、父进程环境、Kpathsea 搜索路径、junction/symbolic-link reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环、文件数洪泛、字节洪泛和内存分配探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary、写出受控位置或连接 listener。runner 将注入 `\directlua` 的 Windows 绝对路径规范为 Lua 和 Windows 都接受的正斜杠形式，避免反斜杠先被 TeX 当作控制序列；Lua 文件探针用 `pcall` 捕获操作系统拒绝，使预期的访问拒绝不会提前终止标记写入；资源探针使用不受 TeX `#` 参数字符处理影响的固定计数和 `table.insert`。墙钟、文件数和字节探针必须在运行中被宿主终止，内存探针必须以 Job Object 记录的不超过 1 GiB 峰值失败。runner 还必须用良性公式证明恰好 256 KiB 的输入和恰好 120 秒的 batch-item 策略可运行，并证明超过 256 KiB 的输入与超过 120 秒的 batch-item 请求在启动 TeX 前被拒绝。runner 从 helper 的 `describe-policy` 读取这些权威上限，探针和归档资源报告不另行复制策略常量，并记录每个资源 case 实际观察到的输出文件数和字节数。
+版本化 corpus 包含正常公式，以及相对遍历、绝对路径、受控输出外写入、父进程环境、Kpathsea 搜索路径、junction/symbolic-link reparse point、Lua 文件与受控 listener 网络连接、shell escape/子进程、无限循环、文件数洪泛、字节洪泛和内存分配探针。正常公式必须在隔离中生成 PDF；恶意文件/网络探针必须写出 `blocked` 标记且不能读取 canary、写出受控位置或连接 listener。runner 将注入 `\directlua` 的 Windows 绝对路径规范为 Lua 和 Windows 都接受的正斜杠形式，避免反斜杠先被 TeX 当作控制序列；Lua 文件探针用 `pcall` 捕获操作系统拒绝，使预期的访问拒绝不会提前终止标记写入。LuaTeX 的固定 `--nosocket` 参数禁用 LuaSocket，AppContainer 零网络 capability 再提供操作系统边界；模块被禁用和连接被拒绝都写成 `blocked`，listener 连接仍必须为假。资源探针使用不受 TeX `#` 参数字符处理影响的固定计数和 `table.insert`。墙钟、文件数和字节探针必须在运行中被宿主终止，内存探针必须以 Job Object 记录的不超过 1 GiB 峰值失败。runner 还必须用良性公式证明恰好 256 KiB 的输入和恰好 120 秒的 batch-item 策略可运行，并证明超过 256 KiB 的输入与超过 120 秒的 batch-item 请求在启动 TeX 前被拒绝。runner 从 helper 的 `describe-policy` 读取这些权威上限，探针和归档资源报告不另行复制策略常量，并记录每个资源 case 实际观察到的输出文件数和字节数。
 
 只要正常公式无法在完整 AppContainer + Job Object + ACL 策略下运行，后续恶意探针就不会被误当作成功。探针运行失败、未运行、机制不可用或证据不全都不能产生 `passed`。
 

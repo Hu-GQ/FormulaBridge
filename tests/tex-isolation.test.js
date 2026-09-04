@@ -378,7 +378,9 @@ test("the versioned malicious TeX corpus covers every filesystem and LuaLaTeX ne
     assert.match(source, /FORMULABRIDGE_ATTACK_RESULT/);
   });
 
-  assert.match(read("corpus/phase0/malicious-tex/lualatex-file-and-network.tex"), /require,\s*["']socket["']/);
+  var luaNetworkProbe = read("corpus/phase0/malicious-tex/lualatex-file-and-network.tex");
+  assert.match(luaNetworkProbe, /require,\s*["']socket["']/);
+  assert.doesNotMatch(luaNetworkProbe, /network-module-unavailable/);
   ["absolute-path.tex", "write-outside.tex", "lualatex-file-and-network.tex"].forEach(function (name) {
     assert.match(read(path.join("corpus", "phase0", "malicious-tex", name)), /pcall\(io\.open/);
   });
@@ -440,6 +442,8 @@ test("the Windows sandbox grants only temporary TeX ancestor lookup and redirect
   assert.match(sandbox, /\["TEXMFCACHE"\] = configuration\.OutputDirectory/);
   assert.match(sandbox, /\["TEXMFCONFIG"\] = configuration\.OutputDirectory/);
   assert.match(sandbox, /\["TEXMFVAR"\] = configuration\.OutputDirectory/);
+  assert.match(sandbox, /"--nosocket"/);
+  assert.doesNotMatch(sandbox, /"--socket"/);
 });
 
 test("the TeX isolation spike documents repeatable build, smoke, evidence, and fail-closed boundaries", function () {

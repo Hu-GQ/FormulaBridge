@@ -874,6 +874,7 @@ internal static class WindowsTexSandbox
         {
             Quote(configuration.EnginePath),
             "--no-shell-escape",
+            "--nosocket",
             "--interaction=nonstopmode",
             "--halt-on-error",
             "--output-directory=" + Quote(configuration.OutputDirectory),

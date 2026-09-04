@@ -13,11 +13,7 @@
     client:close()
   end
   local result = assert(io.open("attack-result.txt", "wb"))
-  if not moduleOk then
-    result:write("network-module-unavailable")
-  else
-    result:write((fileHandle or connected) and "escaped" or "blocked")
-  end
+  result:write((fileHandle or connected) and "escaped" or "blocked")
   if fileHandle then fileHandle:close() end
   result:close()
 }

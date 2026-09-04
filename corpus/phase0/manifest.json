@@ -84,7 +84,7 @@
       "path": "malicious-tex/lualatex-file-and-network.tex",
       "mediaType": "application/x-tex",
       "purpose": "Synthetic LuaLaTeX attempt to read an outside canary and connect to a controlled listener.",
-      "sha256": "ebf8c087ea22b8f75e82ab8f9ea3eace5ae3689f6abe90d205e9aad2fb00d097"
+      "sha256": "1f231b32cd1328ec1d98c62dc9d8d217b1ae633b3bd3a707c924b7b79eda1548"
     },
     {
       "id": "malicious-tex.shell-and-process",
