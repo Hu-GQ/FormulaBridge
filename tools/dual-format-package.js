@@ -271,6 +271,20 @@ function inspectDocument(inputPath) {
   };
 }
 
+function extractPngFallbacks(inputPath, outputDirectory) {
+  var entries = readZip(inputPath);
+  var pngEntries = Array.from(entries.keys()).filter(function (name) {
+    return /^word\/media\/[^/]+\.png$/i.test(name);
+  }).sort();
+
+  fs.mkdirSync(outputDirectory, { recursive: true });
+  return pngEntries.map(function (name, index) {
+    var outputPath = path.join(outputDirectory, "fallback-" + (index + 1) + ".png");
+    fs.writeFileSync(outputPath, entries.get(name));
+    return outputPath;
+  });
+}
+
 function parseArguments(argumentsList) {
   var options = {};
   for (var index = 1; index < argumentsList.length; index += 2) {
@@ -296,7 +310,11 @@ function main() {
     );
     return;
   }
-  throw new Error("Usage: dual-format-package create --output <docx> --inspection <json> [--assets <directory>]\n       dual-format-package inspect --input <docx> --output <json>");
+  if (parsed.command === "extract-png" && parsed.options.input && parsed.options.output) {
+    extractPngFallbacks(path.resolve(parsed.options.input), path.resolve(parsed.options.output));
+    return;
+  }
+  throw new Error("Usage: dual-format-package create --output <docx> --inspection <json> [--assets <directory>]\n       dual-format-package inspect --input <docx> --output <json>\n       dual-format-package extract-png --input <docx> --output <directory>");
 }
 
 if (require.main === module) {
@@ -308,4 +326,8 @@ if (require.main === module) {
   }
 }
 
-module.exports = { createDocument: createDocument, inspectDocument: inspectDocument };
+module.exports = {
+  createDocument: createDocument,
+  inspectDocument: inspectDocument,
+  extractPngFallbacks: extractPngFallbacks
+};

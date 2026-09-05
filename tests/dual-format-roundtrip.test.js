@@ -95,6 +95,31 @@ test("the package inspection detects a damaged PNG even while the SVG remains in
   assert.equal(inspection.mismatchedPngFallbacks, 1);
 });
 
+test("embedded PNG fallbacks can be extracted for visual equivalence checks", function (t) {
+  var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-extracted-fallback-"));
+  var documentPath = path.join(workspace, "formula.docx");
+  var outputDirectory = path.join(workspace, "fallbacks");
+  t.after(function () { fs.rmSync(workspace, { recursive: true, force: true }); });
+
+  dualFormatPackage.createDocument(documentPath);
+  var extracted = dualFormatPackage.extractPngFallbacks(documentPath, outputDirectory);
+
+  assert.equal(extracted.length, 1);
+  assert.equal(path.basename(extracted[0]), "fallback-1.png");
+  assert.deepEqual(
+    fs.readFileSync(extracted[0]),
+    fs.readFileSync(path.join(projectRoot, "tests", "fixtures", "dual-format", "formula.png"))
+  );
+});
+
+test("Word smoke compares fallback pixels instead of requiring byte-identical PNG files", function () {
+  var smoke = fs.readFileSync(smokeScript, "utf8");
+
+  assert.doesNotMatch(smoke, /Inspection\.mismatchedPngFallbacks\s*-ne\s*0/);
+  assert.match(smoke, /Assert-PngFallbackVisuals/);
+  assert.match(smoke, /fallbackVisuals/);
+});
+
 test("the Phase 0 provider blocks with structured evidence when Word is unavailable", function (t) {
   var workspace = fs.mkdtempSync(path.join(os.tmpdir(), "formulabridge-dual-format-provider-"));
   var definition = JSON.parse(fs.readFileSync(checkSetPath, "utf8")).checks.find(function (check) {

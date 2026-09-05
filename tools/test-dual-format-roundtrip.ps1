@@ -27,6 +27,7 @@ $script:visualTolerances = [ordered]@{
     maximumAspectRatioDelta = 0.35
     maximumInkRatioDelta = 0.70
 }
+$script:fallbackVisuals = [ordered]@{}
 $script:assertionById = [ordered]@{}
 $script:currentAssertionId = $requiredAssertionIds[0]
 $script:preflight = $true
@@ -257,9 +258,6 @@ function Assert-DualFormatPackage {
 
     if ($Inspection.svgMediaParts -lt 1 -or $Inspection.pngMediaParts -lt 1) {
         throw "$Description lost an SVG or PNG media part."
-    }
-    if ($Inspection.mismatchedPngFallbacks -ne 0) {
-        throw "$Description contains a PNG fallback that differs from the verified local TeX render."
     }
     if (
         $Inspection.svgBlipReferences -ne $ExpectedReferences -or
@@ -534,6 +532,37 @@ function Compare-FormulaVisual {
     }
 }
 
+function Assert-PngFallbackVisuals {
+    param(
+        [string]$DocumentPath,
+        [string]$Name,
+        [string]$Description
+    )
+
+    $fallbackDirectory = Join-Path $workDirectory ("png-fallbacks-" + $Name)
+    Invoke-NodePackageTool @(
+        "extract-png",
+        "--input", $DocumentPath,
+        "--output", $fallbackDirectory
+    )
+    $fallbacks = @(Get-ChildItem -LiteralPath $fallbackDirectory -Filter "fallback-*.png" -File |
+        Sort-Object Name)
+    if ($fallbacks.Count -lt 1) {
+        throw "$Description has no PNG fallback available for visual inspection."
+    }
+
+    Add-Type -AssemblyName System.Drawing
+    $comparisons = @()
+    foreach ($fallback in $fallbacks) {
+        $comparison = Compare-FormulaVisual $referencePngPath $fallback.FullName $Description
+        $comparisons += $comparison
+        if (-not $comparison.passed) {
+            throw "$Description contains a PNG fallback that is not visually equivalent to the verified local TeX render."
+        }
+    }
+    $script:fallbackVisuals[$Name] = @($comparisons)
+}
+
 $sourceDocumentPath = Join-Path $documentEvidenceDirectory "source.docx"
 $roundtripDocumentPath = Join-Path $documentEvidenceDirectory "save-reopen.docx"
 $sameCopyDocumentPath = Join-Path $documentEvidenceDirectory "same-document-copy.docx"
@@ -616,6 +645,7 @@ try {
     )
     $sourceInspection = Get-Content -LiteralPath $sourceInspectionPath -Raw | ConvertFrom-Json
     Assert-DualFormatPackage $sourceInspection 1 "The source DOCX"
+    Assert-PngFallbackVisuals $sourceDocumentPath "source" "The source DOCX"
     Set-Assertion "self-contained-svg-png" "passed"
     Write-SmokeLog "The source package contains self-contained SVG and PNG fallback media."
 
@@ -635,6 +665,7 @@ try {
 
     $roundtripInspection = Invoke-PackageInspection $roundtripDocumentPath "save-reopen"
     Assert-DualFormatPackage $roundtripInspection 1 "The saved and reopened DOCX"
+    Assert-PngFallbackVisuals $roundtripDocumentPath "save-reopen" "The saved and reopened DOCX"
     Set-Assertion "save-reopen-roundtrip" "passed"
     Write-SmokeLog "Word save, close, and reopen preserved the dual-format relationship."
 
@@ -654,6 +685,7 @@ try {
 
     $sameCopyInspection = Invoke-PackageInspection $sameCopyDocumentPath "same-document-copy"
     Assert-DualFormatPackage $sameCopyInspection 2 "The same-document copy DOCX"
+    Assert-PngFallbackVisuals $sameCopyDocumentPath "same-document-copy" "The same-document copy DOCX"
     Set-Assertion "same-document-copy" "passed"
     Write-SmokeLog "Ordinary same-document copy preserved both formats."
 
@@ -677,6 +709,7 @@ try {
 
     $crossCopyInspection = Invoke-PackageInspection $crossCopyDocumentPath "cross-document-copy"
     Assert-DualFormatPackage $crossCopyInspection 1 "The cross-document copy DOCX"
+    Assert-PngFallbackVisuals $crossCopyDocumentPath "cross-document-copy" "The cross-document copy DOCX"
     Set-Assertion "cross-document-copy" "passed"
     Write-SmokeLog "Ordinary cross-document copy preserved both formats."
 
@@ -746,6 +779,7 @@ try {
             height = 50
         }
         tolerances = $script:visualTolerances
+        fallbackVisuals = $script:fallbackVisuals
         export = $exportVisual
         print = $printVisual
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $visualPath -Encoding utf8

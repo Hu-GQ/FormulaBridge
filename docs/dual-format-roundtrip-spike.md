@@ -15,7 +15,7 @@ npm run dual-format:fixture -- -OutputDirectory tests/fixtures/dual-format
 - SVG 与 PNG 都是包内 `word/media` 部件；
 - PNG 是 `a:blip` fallback，SVG 是同一 blip 的 `asvg:svgBlip` 扩展；
 - 每个关系 ID 都解析到包内实际媒体部件，没有 dangling、外部图片或外部字体关系；
-- 保存/复制后的每个 PNG 与已验证的本地 TeX PNG 哈希一致，不能用损坏但仍存在的 fallback 蒙混通过；
+- 初始包内 PNG 与已验证的本地 TeX PNG 哈希一致；Word 保存或复制后若重编码 fallback，则提取每个包内 PNG，并用同一套归一化墨迹、宽高比、墨迹比例和平均绝对误差门槛验证视觉等价，不能用损坏但仍存在的 fallback 蒙混通过；
 - SVG 不含文本、字体声明、外部 URL、脚本、事件处理器或 `foreignObject`。
 
 无需 Word 的快速包检查可以在任意有 Node.js 和 PowerShell 7 的环境运行：
@@ -44,7 +44,7 @@ npm run dual-format:smoke -- `
   -ProvisionPrintCapture
 ```
 
-runner 在 FormulaBridge 未连接的独立隐藏 Word 实例中完成真实的保存、关闭、重开、同文档普通复制、跨文档普通复制、打印和 PDF 导出。每个 DOCX 都重新解析 OOXML 关系；两个 PDF 都校验结构、用 Poppler 渲染，再与同源 PNG 做归一化墨迹边界、宽高比、墨迹比例和平均绝对误差比较。视觉比较使用容差，不依赖逐像素完全一致。验收断言从检查集读取，视觉门槛由同一份设置同时驱动比较与证据序列化。
+runner 在 FormulaBridge 未连接的独立隐藏 Word 实例中完成真实的保存、关闭、重开、同文档普通复制、跨文档普通复制、打印和 PDF 导出。每个 DOCX 都重新解析 OOXML 关系，并提取其中每个 PNG fallback 与同源 PNG 做归一化视觉比较；两个 PDF 也校验结构、用 Poppler 渲染，再执行相同的墨迹边界、宽高比、墨迹比例和平均绝对误差比较。视觉比较使用容差，不依赖 Word 跨版本保存时保持 PNG 字节或像素尺寸完全一致。验收断言从检查集读取，视觉门槛由同一份设置同时驱动比较与证据序列化。
 
 ## Phase 0 集成与证据
 
