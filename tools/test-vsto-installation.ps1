@@ -216,7 +216,24 @@ function Invoke-Msi {
 
     Write-SmokeLog ("Starting MSI lifecycle step: " + $Step)
     $msiexec = Join-Path $env:WINDIR "System32\msiexec.exe"
-    [void](Invoke-Native $msiexec ($Arguments + @("/qn", "/norestart", "/L*V", $RawLogPath)) ("MSI " + $Step))
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $msiexec
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    foreach ($argument in ($Arguments + @("/qn", "/norestart", "/L*V", $RawLogPath))) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+    $process = [Diagnostics.Process]::Start($startInfo)
+    try {
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        $process.Dispose()
+    }
+    if ($exitCode -ne 0) {
+        throw "MSI $Step failed with exit code $exitCode."
+    }
     Write-SmokeLog ("Completed MSI lifecycle step: " + $Step)
 }
 

@@ -109,6 +109,10 @@ test("the smoke runner covers the installation lifecycle and emits the pinned VS
     assert.ok(smoke.includes('"' + assertionId + '"'), assertionId);
   });
   assert.match(smoke, /msiexec\.exe/);
+  assert.match(smoke, /\[Diagnostics\.ProcessStartInfo\]::new\(\)/);
+  assert.match(smoke, /\.ArgumentList\.Add\(/);
+  assert.match(smoke, /\.WaitForExit\(\)/);
+  assert.match(smoke, /\.ExitCode/);
   assert.match(smoke, /Get-MsiProductState/);
   assert.match(smoke, /Get-MsiRelatedProducts/);
   assert.match(smoke, /"UpgradeCode"/);
