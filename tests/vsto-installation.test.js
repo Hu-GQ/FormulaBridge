@@ -85,6 +85,8 @@ test("the build pipeline signs and verifies every FormulaBridge deployment artif
   assert.match(build, /\$payloadApplicationManifest\s*=\s*Join-Path\s+\$payloadDirectory/);
   assert.match(build, /\$payloadDeploymentManifest\s*=\s*Join-Path\s+\$payloadDirectory/);
   assert.match(build, /\$manifestFilesDirectory\s*=\s*Join-Path\s+\$resolvedOutputDirectory/);
+  assert.match(build, /Resolve-PublishedAssembly/);
+  assert.match(build, /\$FileName\s*\+\s*"\.deploy"/);
   assert.match(build, /"-FromDirectory",\s*\$manifestFilesDirectory/);
   assert.doesNotMatch(build, /"-FromDirectory",\s*\$addInPublishDirectory/);
   assert.match(build, /signtool(?:\.exe)?[\s\S]+sign/);

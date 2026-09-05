@@ -72,6 +72,22 @@ function Resolve-MSBuildPath {
     throw "Visual Studio MSBuild.exe with Microsoft.VisualStudio.Tools.Office.targets is unavailable."
 }
 
+function Resolve-PublishedAssembly {
+    param(
+        [string]$Directory,
+        [string]$FileName
+    )
+
+    foreach ($candidateName in @($FileName, ($FileName + ".deploy"))) {
+        $candidate = Join-Path $Directory $candidateName
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+
+    throw "The VSTO publish did not produce $FileName or $FileName.deploy."
+}
+
 function Invoke-Checked {
     param(
         [string]$FilePath,
@@ -238,12 +254,10 @@ if (-not $publishedApplicationManifest -or -not $publishedDeploymentManifest) {
     throw "The VSTO publish did not produce both application and deployment manifests."
 }
 $addInPublishDirectory = $publishedApplicationManifest.Directory.FullName
-$publishedWordAddInAssembly = Join-Path $addInPublishDirectory "FormulaBridge.WordAddIn.dll"
-$publishedUtilitiesAssembly = Join-Path $addInPublishDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
-if (-not (Test-Path -LiteralPath $publishedWordAddInAssembly) -or
-    -not (Test-Path -LiteralPath $publishedUtilitiesAssembly) -or
-    -not (Test-Path -LiteralPath $diagnosticsExecutable)) {
-    throw "The VSTO or diagnostics binary is missing after build."
+$publishedWordAddInAssembly = Resolve-PublishedAssembly $addInPublishDirectory "FormulaBridge.WordAddIn.dll"
+$publishedUtilitiesAssembly = Resolve-PublishedAssembly $addInPublishDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+if (-not (Test-Path -LiteralPath $diagnosticsExecutable -PathType Leaf)) {
+    throw "The diagnostics binary is missing after build."
 }
 
 $manifestWordAddInAssembly = Join-Path $manifestFilesDirectory "FormulaBridge.WordAddIn.dll"
