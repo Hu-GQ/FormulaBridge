@@ -7,6 +7,13 @@ var os = require("node:os");
 var path = require("node:path");
 
 var projectRoot = path.resolve(__dirname, "..");
+var vstoRuntimePayloads = [
+  "Microsoft.Office.Tools.Common.dll",
+  "Microsoft.Office.Tools.Common.v4.0.Utilities.dll",
+  "Microsoft.Office.Tools.dll",
+  "Microsoft.Office.Tools.Word.dll",
+  "Microsoft.VisualStudio.Tools.Applications.Runtime.dll"
+];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(projectRoot, relativePath), "utf8");
@@ -25,6 +32,9 @@ test("the VSTO installer is x64, per-user, and registers Word auto-load without 
   assert.doesNotMatch(installer, /PersonalFolder|MyDocuments|DocumentsFolder/i);
   assert.match(installer, /RemoveFolder[^>]+Directory="FormulaBridgeProgramsFolder"[^>]+On="uninstall"/);
   assert.match(installer, /RemoveFile[^>]+Name="word-load-state\.json\.\*\.tmp"[^>]+On="uninstall"/);
+  vstoRuntimePayloads.forEach(function (fileName) {
+    assert.ok(installer.includes('Source="$(var.AddInPublishDir)\\' + fileName + '"'), fileName);
+  });
 });
 
 test("the Word add-in publishes a signed VSTO Ribbon and an external load-state signal", function () {
@@ -93,6 +103,9 @@ test("the build pipeline signs and verifies every FormulaBridge deployment artif
   assert.match(build, /signtool(?:\.exe)?[\s\S]+verify/);
   assert.match(build, /wix(?:\.exe)?[\s\S]+build/);
   assert.match(build, /build-metadata\.json/);
+  vstoRuntimePayloads.forEach(function (fileName) {
+    assert.ok(build.includes('"' + fileName + '"'), fileName);
+  });
   assert.match(build, /production[\s\S]+TimestampUrl/);
   assert.doesNotMatch(build, /New-SelfSignedCertificate|Import-Certificate|RunAs|Verb\s+runas|Start-Process[^\n]+-Verb/i);
 });
@@ -142,6 +155,9 @@ test("the smoke runner covers the installation lifecycle and emits the pinned VS
   assert.match(smoke, /diagnostics-report/);
   assert.match(smoke, /evidence\/vsto-installation\/result\/result\.json/);
   assert.match(smoke, /programFilesAfterUninstall/);
+  vstoRuntimePayloads.forEach(function (fileName) {
+    assert.ok(smoke.includes('"' + fileName + '"'), fileName);
+  });
   assert.match(smoke, /Uninstall left program files/);
   assert.match(smoke, /Assert-MsiDocumentPrivacyContract/);
   assert.match(smoke, /CustomAction/);

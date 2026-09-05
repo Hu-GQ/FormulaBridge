@@ -636,7 +636,11 @@ function Invoke-SignatureVerification {
         @{ name = "installer"; path = $resolvedInstallerPath; kind = "authenticode"; expectedSigner = $true },
         @{ name = "word-addin"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.dll"); kind = "authenticode"; expectedSigner = $true },
         @{ name = "diagnostics"; path = (Join-Path $InstalledDirectory "FormulaBridge.Diagnostics.exe"); kind = "authenticode"; expectedSigner = $true },
+        @{ name = "office-tools-common"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.Common.dll"); kind = "authenticode"; expectedSigner = $false },
         @{ name = "office-tools-utilities"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"); kind = "authenticode"; expectedSigner = $false },
+        @{ name = "office-tools"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.dll"); kind = "authenticode"; expectedSigner = $false },
+        @{ name = "office-tools-word"; path = (Join-Path $InstalledDirectory "Microsoft.Office.Tools.Word.dll"); kind = "authenticode"; expectedSigner = $false },
+        @{ name = "vsto-runtime"; path = (Join-Path $InstalledDirectory "Microsoft.VisualStudio.Tools.Applications.Runtime.dll"); kind = "authenticode"; expectedSigner = $false },
         @{ name = "application-manifest"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.dll.manifest"); kind = "manifest" },
         @{ name = "deployment-manifest"; path = (Join-Path $InstalledDirectory "FormulaBridge.WordAddIn.vsto"); kind = "manifest" }
     )
@@ -772,7 +776,11 @@ $programFileNames = @(
     "FormulaBridge.WordAddIn.dll",
     "FormulaBridge.WordAddIn.dll.manifest",
     "FormulaBridge.WordAddIn.vsto",
+    "Microsoft.Office.Tools.Common.dll",
     "Microsoft.Office.Tools.Common.v4.0.Utilities.dll",
+    "Microsoft.Office.Tools.dll",
+    "Microsoft.Office.Tools.Word.dll",
+    "Microsoft.VisualStudio.Tools.Applications.Runtime.dll",
     "FormulaBridge.Diagnostics.exe"
 )
 

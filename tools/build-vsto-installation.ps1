@@ -254,18 +254,28 @@ if (-not $publishedApplicationManifest -or -not $publishedDeploymentManifest) {
     throw "The VSTO publish did not produce both application and deployment manifests."
 }
 $addInPublishDirectory = $publishedApplicationManifest.Directory.FullName
-$publishedWordAddInAssembly = Resolve-PublishedAssembly $addInPublishDirectory "FormulaBridge.WordAddIn.dll"
-$publishedUtilitiesAssembly = Resolve-PublishedAssembly $addInPublishDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+$publishedAssemblyNames = @(
+    "FormulaBridge.WordAddIn.dll",
+    "Microsoft.Office.Tools.Common.dll",
+    "Microsoft.Office.Tools.Common.v4.0.Utilities.dll",
+    "Microsoft.Office.Tools.dll",
+    "Microsoft.Office.Tools.Word.dll",
+    "Microsoft.VisualStudio.Tools.Applications.Runtime.dll"
+)
+$manifestAssemblyByName = [ordered]@{}
+foreach ($assemblyName in $publishedAssemblyNames) {
+    $publishedAssembly = Resolve-PublishedAssembly $addInPublishDirectory $assemblyName
+    $manifestAssembly = Join-Path $manifestFilesDirectory $assemblyName
+    Copy-Item -LiteralPath $publishedAssembly -Destination $manifestAssembly
+    $manifestAssemblyByName[$assemblyName] = $manifestAssembly
+}
 if (-not (Test-Path -LiteralPath $diagnosticsExecutable -PathType Leaf)) {
     throw "The diagnostics binary is missing after build."
 }
 
-$manifestWordAddInAssembly = Join-Path $manifestFilesDirectory "FormulaBridge.WordAddIn.dll"
-$manifestUtilitiesAssembly = Join-Path $manifestFilesDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+$manifestWordAddInAssembly = $manifestAssemblyByName["FormulaBridge.WordAddIn.dll"]
 $payloadApplicationManifest = Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll.manifest"
 $payloadDeploymentManifest = Join-Path $payloadDirectory "FormulaBridge.WordAddIn.vsto"
-Copy-Item -LiteralPath $publishedWordAddInAssembly -Destination $manifestWordAddInAssembly
-Copy-Item -LiteralPath $publishedUtilitiesAssembly -Destination $manifestUtilitiesAssembly
 Copy-Item -LiteralPath $publishedApplicationManifest.FullName -Destination $payloadApplicationManifest
 Copy-Item -LiteralPath $publishedDeploymentManifest.FullName -Destination $payloadDeploymentManifest
 
@@ -301,8 +311,9 @@ Invoke-Checked $mage $deploymentManifestArguments "mage -Update deployment manif
 Invoke-Checked $mage @("-Verify", $payloadApplicationManifest) "mage -Verify application manifest"
 Invoke-Checked $mage @("-Verify", $payloadDeploymentManifest) "mage -Verify deployment manifest"
 
-Copy-Item -LiteralPath $manifestWordAddInAssembly -Destination (Join-Path $payloadDirectory "FormulaBridge.WordAddIn.dll")
-Copy-Item -LiteralPath $manifestUtilitiesAssembly -Destination (Join-Path $payloadDirectory "Microsoft.Office.Tools.Common.v4.0.Utilities.dll")
+foreach ($assemblyName in $publishedAssemblyNames) {
+    Copy-Item -LiteralPath $manifestAssemblyByName[$assemblyName] -Destination (Join-Path $payloadDirectory $assemblyName)
+}
 
 Invoke-Checked $wix @(
     "build",
@@ -321,7 +332,9 @@ Invoke-SignToolSign $signtool $signing.Thumbprint $TimestampUrl $installerPath
 Invoke-SignToolVerify $signtool $manifestWordAddInAssembly
 Invoke-SignToolVerify $signtool $diagnosticsExecutable
 Invoke-SignToolVerify $signtool $installerPath
-Invoke-SignToolVerify $signtool $manifestUtilitiesAssembly
+foreach ($assemblyName in $publishedAssemblyNames | Where-Object { $_ -ne "FormulaBridge.WordAddIn.dll" }) {
+    Invoke-SignToolVerify $signtool $manifestAssemblyByName[$assemblyName]
+}
 
 $commit = (& git -C $projectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) {
@@ -344,7 +357,11 @@ $metadata = [ordered]@{
         applicationManifest = "payload/FormulaBridge.WordAddIn.dll.manifest"
         deploymentManifest = "payload/FormulaBridge.WordAddIn.vsto"
         wordAddInAssembly = "payload/FormulaBridge.WordAddIn.dll"
+        officeToolsCommon = "payload/Microsoft.Office.Tools.Common.dll"
         officeToolsUtilities = "payload/Microsoft.Office.Tools.Common.v4.0.Utilities.dll"
+        officeTools = "payload/Microsoft.Office.Tools.dll"
+        officeToolsWord = "payload/Microsoft.Office.Tools.Word.dll"
+        vstoRuntime = "payload/Microsoft.VisualStudio.Tools.Applications.Runtime.dll"
         diagnostics = "diagnostics/FormulaBridge.Diagnostics.exe"
     }
 }

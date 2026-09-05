@@ -19,7 +19,11 @@
             <File Id="WordAddInAssembly" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.dll" KeyPath="yes" />
             <File Id="WordAddInApplicationManifest" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.dll.manifest" />
             <File Id="WordAddInDeploymentManifest" Source="$(var.AddInPublishDir)\FormulaBridge.WordAddIn.vsto" />
+            <File Id="OfficeToolsCommon" Source="$(var.AddInPublishDir)\Microsoft.Office.Tools.Common.dll" />
             <File Id="OfficeToolsUtilities" Source="$(var.AddInPublishDir)\Microsoft.Office.Tools.Common.v4.0.Utilities.dll" />
+            <File Id="OfficeTools" Source="$(var.AddInPublishDir)\Microsoft.Office.Tools.dll" />
+            <File Id="OfficeToolsWord" Source="$(var.AddInPublishDir)\Microsoft.Office.Tools.Word.dll" />
+            <File Id="VstoRuntime" Source="$(var.AddInPublishDir)\Microsoft.VisualStudio.Tools.Applications.Runtime.dll" />
           </Component>
           <Component Id="DiagnosticsFiles" Guid="6C798530-D872-46C6-80DA-D8D992264590" Bitness="always64">
             <File Id="DiagnosticsExecutable" Source="$(var.DiagnosticsPath)" KeyPath="yes">
