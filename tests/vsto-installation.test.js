@@ -126,6 +126,10 @@ test("the smoke runner covers the installation lifecycle and emits the pinned VS
   assert.match(smoke, /Word\.Application/);
   assert.match(smoke, /COMAddIns/);
   assert.match(smoke, /UIAutomationClient/);
+  assert.match(smoke, /\$word\.ActiveWindow\.Hwnd/);
+  assert.doesNotMatch(smoke, /\$word\.Hwnd/);
+  assert.match(smoke, /\$word\.WindowState\s*=\s*1/);
+  assert.match(smoke, /@\(\$wordElement\.FindAll/);
   assert.match(smoke, /ControlType\]::TabItem/);
   assert.match(smoke, /Get-FileHash/);
   assert.match(smoke, /RegistryHive\]::CurrentUser/);

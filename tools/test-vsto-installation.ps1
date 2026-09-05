@@ -531,6 +531,9 @@ function Invoke-WordLoadProbe {
         $word = New-Object -ComObject Word.Application
         $word.Visible = $true
         $document = $word.Documents.Add()
+        $word.WindowState = 1
+        $word.Activate()
+        $document.Activate()
         $deadline = [DateTime]::UtcNow.AddSeconds($WordLoadTimeoutSeconds)
         $state = $null
         do {
@@ -554,14 +557,14 @@ function Invoke-WordLoadProbe {
         }
 
         Add-Type -AssemblyName UIAutomationClient
-        $wordElement = [Windows.Automation.AutomationElement]::FromHandle([IntPtr]$word.Hwnd)
+        $wordElement = [Windows.Automation.AutomationElement]::FromHandle([IntPtr]$word.ActiveWindow.Hwnd)
         $nameCondition = New-Object Windows.Automation.PropertyCondition -ArgumentList @(
             [Windows.Automation.AutomationElement]::NameProperty,
             "FormulaBridge")
-        $namedElements = $wordElement.FindAll([Windows.Automation.TreeScope]::Descendants, $nameCondition)
+        $namedElements = @($wordElement.FindAll([Windows.Automation.TreeScope]::Descendants, $nameCondition))
         $ribbonTabVisible = $false
         for ($index = 0; $index -lt $namedElements.Count; $index += 1) {
-            $element = $namedElements.Item($index)
+            $element = $namedElements[$index]
             if ($element.Current.ControlType -eq [Windows.Automation.ControlType]::TabItem -and
                 -not $element.Current.IsOffscreen) {
                 $ribbonTabVisible = $true
