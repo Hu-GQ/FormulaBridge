@@ -42,6 +42,8 @@
 
 Office 2024 同提交验收记录：验收提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`；环境为 Windows 11 x64、Word `16.0.17932.20076`、`ProPlus2024Volume`、x64、zh-CN；`vsto-installation`、`source-portable-copy`、`dual-format-roundtrip` 和 `tex-isolation` 四项统一报告均为 `passed`；独立 `validate-report` 通过；统一报告 SHA-256：`44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1`。TeX 隔离 smoke 使用提升令牌为每个 case 临时添加并逆序恢复 AppContainer SID ACL；标准令牌对系统所有的 `C:\texlive\2026` 没有修改 DACL 的权限，因此该安装位置仍需要安装期 ACL 预配或提升的隔离代理，不能把标准令牌下的 Win32 5 当作产品路径已通过。
 
+验收环境恢复记录：临时代码签名证书在 `My`、`Root` 和 `TrustedPublisher` 中的计数均为 0；临时打印机不存在；`EnableLUA=0`，与验收前配置一致并已重启；相关进程、临时计划任务、`FBTex` AppContainer profile 和临时 package SID ACL 均无残留；`C:\FormulaBridge-exact` 仍为验收提交且工作树干净。
+
 ## 阶段 1：纵向产品闭环
 
 - [ ] 将阶段 0 VSTO 样机演进为生产形态安装与 Ribbon

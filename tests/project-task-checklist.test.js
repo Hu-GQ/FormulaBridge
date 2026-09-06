@@ -41,6 +41,7 @@ test('project task checklist separates completed evidence from remaining deliver
   }
   assert.match(checklist, /验收提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`/);
   assert.match(checklist, /统一报告 SHA-256：`44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1`/);
+  assert.match(checklist, /验收环境恢复记录：临时代码签名证书在 `My`、`Root` 和 `TrustedPublisher` 中的计数均为 0；临时打印机不存在；`EnableLUA=0`/);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证$/m);
