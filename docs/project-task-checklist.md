@@ -30,15 +30,17 @@
 - [x] 准备 Windows 11 x64 和受支持 Word x64 的干净验收账户
 - [x] 准备 VSTO、MSBuild、WiX、Mage、SignTool 和授权代码签名证书
 - [x] 生成与待验收提交匹配的签名 MSI 和 `build-metadata.json`
-- [ ] 通过 clean install、重复安装、repair、自动加载和 uninstall 生命周期 smoke
+- [x] 通过 clean install、重复安装、repair、自动加载和 uninstall 生命周期 smoke
 - [x] 通过外部诊断的真实健康、禁用和恢复状态验收
-- [ ] 在 Windows 11 上通过 TeX 文件、网络、进程和资源隔离 smoke
-- [ ] 通过运行中取消、完整 Job 清理、同宿主恢复和 Word 响应验收
+- [x] 在 Windows 11 上通过 TeX 文件、网络、进程和资源隔离 smoke
+- [x] 通过运行中取消、完整 Job 清理、同宿主恢复和 Word 响应验收
 - [ ] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁
 - [ ] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁
-- [ ] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
+- [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
 - [ ] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证
 - [ ] 完成阶段 0 支持矩阵裁决并关闭剩余阶段 0 Issue
+
+Office 2024 同提交验收记录：验收提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`；环境为 Windows 11 x64、Word `16.0.17932.20076`、`ProPlus2024Volume`、x64、zh-CN；`vsto-installation`、`source-portable-copy`、`dual-format-roundtrip` 和 `tex-isolation` 四项统一报告均为 `passed`；独立 `validate-report` 通过；统一报告 SHA-256：`44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1`。TeX 隔离 smoke 使用提升令牌为每个 case 临时添加并逆序恢复 AppContainer SID ACL；标准令牌对系统所有的 `C:\texlive\2026` 没有修改 DACL 的权限，因此该安装位置仍需要安装期 ACL 预配或提升的隔离代理，不能把标准令牌下的 Win32 5 当作产品路径已通过。
 
 ## 阶段 1：纵向产品闭环
 
