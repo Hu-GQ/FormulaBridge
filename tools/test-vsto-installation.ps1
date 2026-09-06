@@ -881,9 +881,9 @@ try {
 
     $userRegisteredAfterUninstall = Test-RegistryKey ([Microsoft.Win32.RegistryHive]::CurrentUser) ([Microsoft.Win32.RegistryView]::Registry64) $addInRegistryPath
     $sentinelHashAfter = (Get-FileHash -LiteralPath $sentinelPath -Algorithm SHA256).Hash
-    $programFilesAfterUninstall = $programFileNames |
+    $programFilesAfterUninstall = @($programFileNames |
         ForEach-Object { Join-Path $installDirectory $_ } |
-        Where-Object { Test-Path -LiteralPath $_ }
+        Where-Object { Test-Path -LiteralPath $_ })
     if ($programFilesAfterUninstall.Count -gt 0) {
         Set-Assertion "non-destructive-uninstall" "failed" "Uninstall left program files in the per-user installation directory."
         throw "Uninstall left program files."

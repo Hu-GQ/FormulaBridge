@@ -160,6 +160,7 @@ test("the smoke runner covers the installation lifecycle and emits the pinned VS
   assert.match(smoke, /diagnostics-report/);
   assert.match(smoke, /evidence\/vsto-installation\/result\/result\.json/);
   assert.match(smoke, /programFilesAfterUninstall/);
+  assert.match(smoke, /\$programFilesAfterUninstall\s*=\s*@\(/);
   vstoRuntimePayloads.forEach(function (fileName) {
     assert.ok(smoke.includes('"' + fileName + '"'), fileName);
   });
