@@ -63,6 +63,7 @@ test("external diagnostics report registration, prerequisites, policy, and Ribbo
   var project = read("src/desktop/FormulaBridge.Diagnostics/FormulaBridge.Diagnostics.csproj");
   var program = read("src/desktop/FormulaBridge.Diagnostics/Program.cs");
   var diagnostics = read("src/desktop/FormulaBridge.Diagnostics/VstoDiagnostics.cs") + read("src/desktop/FormulaBridge.Diagnostics/WindowsDiagnosticProbe.cs");
+  var deploymentTrust = read("src/desktop/FormulaBridge.Diagnostics/DeploymentTrust.cs");
 
   assert.match(project, /<TargetFrameworkVersion>v4\.8<\/TargetFrameworkVersion>/);
   assert.match(project, /<OutputType>Exe<\/OutputType>/);
@@ -78,6 +79,10 @@ test("external diagnostics report registration, prerequisites, policy, and Ribbo
   assert.match(program, /--output/);
   assert.match(program, /Console\.Out\.Write/);
   assert.doesNotMatch([program, diagnostics].join("\n"), /ActiveDocument|Documents\.|Documents\[|MyDocuments|PersonalFolder/);
+  assert.match(deploymentTrust, /System\.Deployment\.Internal\.CodeSigning\.SignedCmiManifest2/);
+  assert.match(deploymentTrust, /RevocationCheckEntireChain[\s\S]+UrlCacheOnlyRetrieval/);
+  assert.match(deploymentTrust, /SignerChain/);
+  assert.doesNotMatch(deploymentTrust, /ManifestSignatureInformation|CreatePartialActivationContext|\.Clone\(\)/);
 });
 
 test("the build pipeline signs and verifies every FormulaBridge deployment artifact with explicit trust level", function () {

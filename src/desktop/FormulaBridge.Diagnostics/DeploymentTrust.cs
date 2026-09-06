@@ -1,11 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace FormulaBridge.Diagnostics
@@ -24,24 +23,8 @@ namespace FormulaBridge.Diagnostics
                 if (dependency == null) return "failed";
                 string applicationPath = ResolvePayload(root, dependency.GetAttribute("codebase"));
                 XmlDocument application = ReadManifest(applicationPath);
-                string identity = new Uri(deploymentPath).AbsoluteUri + "#" + Identity(deployment) + "\\" + Identity(application);
-                string signer = null;
-                using (ActivationContext context = ActivationContext.CreatePartialActivationContext(
-                    new ApplicationIdentity(identity), new[] { deploymentPath, applicationPath }))
-                {
-                    ManifestSignatureInformationCollection signatures = ManifestSignatureInformation.VerifySignature(
-                        context, ManifestKinds.ApplicationAndDeployment, X509RevocationFlag.ExcludeRoot, X509RevocationMode.Offline);
-                    if (signatures.Count != 2) return "failed";
-                    foreach (ManifestSignatureInformation info in signatures)
-                    {
-                        if (info.StrongNameSignature == null || !info.StrongNameSignature.IsValid || info.AuthenticodeSignature == null) return "failed";
-                        if (info.AuthenticodeSignature.VerificationResult != SignatureVerificationResult.Valid)
-                            return TrustFailure(info.AuthenticodeSignature.HResult);
-                        string current = info.AuthenticodeSignature.SigningCertificate.Thumbprint;
-                        if (signer != null && !string.Equals(signer, current, StringComparison.OrdinalIgnoreCase)) return "failed";
-                        signer = current;
-                    }
-                }
+                string signer = VerifyManifestSignature(deployment);
+                if (!string.Equals(signer, VerifyManifestSignature(application), StringComparison.OrdinalIgnoreCase)) return "failed";
                 VerifyPayloadHashes(deployment, root);
                 VerifyPayloadHashes(application, Path.GetDirectoryName(applicationPath));
                 foreach (string name in new[] { "FormulaBridge.WordAddIn.dll", "FormulaBridge.Diagnostics.exe" })
@@ -56,9 +39,10 @@ namespace FormulaBridge.Diagnostics
             }
             catch (Exception error)
             {
-                if (error is UnauthorizedAccessException || error is SecurityException) return "blocked";
-                if (error is IOException || error is XmlException || error is CryptographicException || error is ArgumentException || error is InvalidOperationException || error is NotSupportedException || error is COMException) return "failed";
-                throw;
+                Exception failure = error is TargetInvocationException && error.InnerException != null ? error.InnerException : error;
+                if (failure is UnauthorizedAccessException || failure is SecurityException) return "blocked";
+                if (failure is CryptographicException) return TrustFailure(failure.HResult);
+                return "failed";
             }
         }
 
@@ -93,19 +77,32 @@ namespace FormulaBridge.Diagnostics
             return document;
         }
 
-        private static string Identity(XmlDocument document)
+        private static string VerifyManifestSignature(XmlDocument document)
         {
-            XmlElement identity = document.SelectSingleNode("/*[local-name()='assembly']/*[local-name()='assemblyIdentity']") as XmlElement;
-            if (identity == null) throw new InvalidOperationException("Missing manifest identity");
-            var parts = new List<string>();
-            foreach (string name in new[] { "name", "version", "publicKeyToken", "processorArchitecture", "language", "type" })
-            {
-                string value = identity.GetAttribute(name);
-                if (value.Length == 0 && (name == "language" || name == "type")) continue;
-                if (!Regex.IsMatch(value, "^[A-Za-z0-9_.-]+$")) throw new InvalidOperationException("Invalid manifest identity");
-                parts.Add(name == "name" ? value : (name == "language" ? "culture" : name) + "=" + value);
-            }
-            return string.Join(", ", parts);
+            const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            Assembly deployment = Assembly.Load("System.Deployment, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+            Type verifierType = deployment.GetType("System.Deployment.Internal.CodeSigning.SignedCmiManifest2", true);
+            ConstructorInfo constructor = verifierType.GetConstructor(all, null, new[] { typeof(XmlDocument), typeof(bool) }, null);
+            MethodInfo verify = verifierType.GetMethod("Verify", all);
+            if (constructor == null || verify == null || verify.GetParameters().Length != 1) throw new InvalidOperationException("ClickOnce verifier is unavailable");
+
+            // Keep the file-backed DOM. Cloning it before SignedXml verification loses
+            // context needed by the .NET Framework ClickOnce verifier and reports a false bad digest.
+            object verifier = constructor.Invoke(new object[] { document, true });
+            Type flagsType = verify.GetParameters()[0].ParameterType;
+            const int RevocationCheckEntireChain = 4;
+            const int UrlCacheOnlyRetrieval = 8;
+            verify.Invoke(verifier, new[] { Enum.ToObject(flagsType, RevocationCheckEntireChain | UrlCacheOnlyRetrieval) });
+
+            object strongName = verifierType.GetProperty("StrongNameSignerInfo", all).GetValue(verifier, null);
+            object authenticode = verifierType.GetProperty("AuthenticodeSignerInfo", all).GetValue(verifier, null);
+            if (strongName == null || strongName.GetType().GetProperty("PublicKey", all).GetValue(strongName, null) == null || authenticode == null)
+                throw new CryptographicException("Incomplete ClickOnce signature");
+            var chain = authenticode.GetType().GetProperty("SignerChain", all).GetValue(authenticode, null) as X509Chain;
+            if (chain == null || chain.ChainElements.Count == 0) throw new CryptographicException("Missing ClickOnce signer chain");
+            string thumbprint = chain.ChainElements[0].Certificate.Thumbprint;
+            if (string.IsNullOrWhiteSpace(thumbprint)) throw new CryptographicException("Missing ClickOnce signer certificate");
+            return thumbprint;
         }
 
         internal static void VerifyPayloadHashes(XmlDocument document, string root)
