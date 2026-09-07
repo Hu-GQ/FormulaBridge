@@ -76,6 +76,10 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 
 ## 裁决
 
+Current Channel 环境结束后已核查：本次临时证书、打印机、任务、测试进程、`FBTex` profile 和指定 TeX 根目录／祖先目录的随机 package SID ACE 均无残留。已恢复原 `EnableLUA=0`，重启后确认启动时间变化及注册表值为 `0`。此恢复检查点完成后才开始 Monthly Enterprise 安装。
+
+补充环境诊断使用同一冻结源码的沙箱环境变量与命令参数，在普通进程中编译相同合成输入：TeX Live 2024／2025 均退出 `1`，确认 `openin_any=p` 拒绝读取请求的绝对输入路径；2026 退出 `0` 且生成 PDF。该诊断定位了年度版在受限输入配置下的兼容性差异，未放宽策略、修改冻结提交或替代矩阵门禁。
+
 Current Channel 其余三个组合现已完成首次四项运行，各统一报告的 `validate-report` 退出码均为 `0`，但 TeX 检查均为 `failed`。TeX Live 2024／2025 的原生沙箱成功启动、引擎退出码 `1`，良性公式未生成 PDF；MiKTeX 的良性公式触发固定墙钟时限，亦无 PDF。后续攻击及生命周期断言未运行，不能将其判为通过。三个组合均报告 `profileDeleted=true`、`aclRestored=true`。年度版在普通环境中的合成公式编译退出码均为 `0` 且生成 PDF，隔离环境失败的原因仍待诊断。报告 SHA-256 见上表，原始材料仅在虚拟机中保留。
 
 尚未通过完整支持矩阵，阶段 1 门禁保持关闭，[Issue #8](https://github.com/Hu-GQ/FormulaBridge/issues/8) 保持开放。既有 Office 2024／TeX Live 2026 的通过结果仅覆盖该组合。

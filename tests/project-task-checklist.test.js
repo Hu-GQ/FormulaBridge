@@ -68,6 +68,9 @@ test('project task checklist separates completed evidence from remaining deliver
     assert.equal(hash, expectedHash);
   }
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
+  assert.match(checklist, /^- \[x\] 清理 Current Channel 环境临时对象并重启验证原 UAC 设置恢复$/m);
+  assert.match(matrix, /恢复原 `EnableLUA=0`，重启后确认启动时间变化及注册表值为 `0`/);
+  assert.match(matrix, /`openin_any=p` 拒绝读取请求的绝对输入路径/);
   assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2026 普通优先级复测、独立报告校验和超时残留清理$/m);
   assert.match(matrix, /普通优先级没有解决该门禁问题/);
   assert.match(matrix, /新报告 SHA-256：`4BDB7EE8AB74AB9F41A8A4D4B6BD09B3F44A04F9BDEEF3B5552639B3C6CA2218`/);
