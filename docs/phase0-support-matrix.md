@@ -10,10 +10,10 @@
 | Office 2024 | TeX Live 2025 | pending | — |
 | Office 2024 | TeX Live 2026 | passed | 44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1 |
 | Office 2024 | MiKTeX | pending | — |
-| Microsoft 365 Current Channel | TeX Live 2024 | pending | — |
-| Microsoft 365 Current Channel | TeX Live 2025 | pending | — |
+| Microsoft 365 Current Channel | TeX Live 2024 | failed | F56F298E20728ADCEF3E685BDBC940C8E0540F4130379BB82955C13778F92830 |
+| Microsoft 365 Current Channel | TeX Live 2025 | failed | FD3803354FC0CE16822DA7E501BFBE5F52097582A92566051227831CAF5C5445 |
 | Microsoft 365 Current Channel | TeX Live 2026 | failed | 4BB2676FE33CF0B44D5B4283630F5EF9CB1ABC1FACCC07ACF944B89FF6750C71 |
-| Microsoft 365 Current Channel | MiKTeX | pending | — |
+| Microsoft 365 Current Channel | MiKTeX | failed | A9BFAED298B0D7135F780768FEE81C1FEB4C1C2A2DD871018F0EC3CE092DDD72 |
 | Microsoft 365 Monthly Enterprise Channel | TeX Live 2024 | pending | — |
 | Microsoft 365 Monthly Enterprise Channel | TeX Live 2025 | pending | — |
 | Microsoft 365 Monthly Enterprise Channel | TeX Live 2026 | pending | — |
@@ -25,8 +25,8 @@
 - 新验收虚拟机使用 Windows 11 Pro 25H2 x64，build `26200.9168`。按用户最新要求不再复制虚拟机；未创建待删除的部分克隆。原有 TeX Live 2026 和构建工具链未重新安装。
 - Current Channel 安装器退出码为 `0`；实际 Word `16.0.20326.20132`、`O365ProPlusRetail`、x64、zh-CN，通道 ID `492350f6-3a01-4f97-b9c0-c7c6ddf67d60`。用户完成激活操作后，交互会话中的 Word COM 已成功创建、编辑和保存合成文档；`vnextdiag.ps1 -action list` 仍返回 `No licenses found`，旧许可诊断为 `TIMEBASED_SUB`／`OOB_GRACE`。不将可编辑性记为已确认订阅激活。
 - Monthly Enterprise 的目标版本为 `16.0.20228.20188`；安装文件下载退出码 `0`，尚未安装和验收。两通道的目标版本依据微软[受支持版本表](https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date)确定。
-- MiKTeX Portable 已安装，LuaHBTeX `1.25.7`，发行版 `MiKTeX 26.5 Portable`。首次健康检查因缺少 `lualatex.fmt` 失败；准备格式和依赖后，以关闭自动安装的参数完成基础编译，退出码 `0` 且生成 PDF。尚未通过隔离门禁。
-- TeX Live 2024／2025 已从 [TUG 列出的历史镜像](https://tug.org/historic/)分别安装到独立年度目录，安装退出码均为 `0`，LuaHBTeX 版本分别为 `1.18.0`／`1.22.0`，尚未运行隔离门禁。下载物的哈希用于标识本次取得的文件，不单独构成发行方签名验证。
+- MiKTeX Portable 已安装，LuaHBTeX `1.25.7`，发行版 `MiKTeX 26.5 Portable`。首次健康检查因缺少 `lualatex.fmt` 失败；准备格式和依赖后，以关闭自动安装的参数完成基础编译，退出码 `0` 且生成 PDF。隔离门禁结果见后文。
+- TeX Live 2024／2025 已从 [TUG 列出的历史镜像](https://tug.org/historic/)分别安装到独立年度目录，安装退出码均为 `0`，LuaHBTeX 版本分别为 `1.18.0`／`1.22.0`，已运行隔离门禁，结果见后文。下载物的哈希用于标识本次取得的文件，不单独构成发行方签名验证。
 
 | 对象 | 版本／年份 | SHA-256 |
 | --- | --- | --- |
@@ -66,7 +66,7 @@
 
 ## Current Channel 其余 Word 检查
 
-Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`source-portable-copy`、`dual-format-roundtrip` 共九项检查均通过。它们均使用固定提交、交互会话 1 和标准权限；双格式检查使用显式 STA 与预配 PDF 打印机。该批任务及临时打印机已删除，默认打印机列表与运行前一致（空）。这些结果尚缺各发行版的 TeX 隔离检查和统一报告，三行继续保持 `pending`。
+Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`source-portable-copy`、`dual-format-roundtrip` 共九项检查均通过。它们均使用固定提交、交互会话 1 和标准权限；双格式检查使用显式 STA 与预配 PDF 打印机。该批任务及临时打印机已删除，默认打印机列表与运行前一致（空）。这九项 Word 检查不能单独满足四项统一门禁。
 
 | Current Channel 的检查片段 | TeX Live 2024 SHA-256 | TeX Live 2025 SHA-256 | MiKTeX SHA-256 |
 | --- | --- | --- | --- |
@@ -75,5 +75,7 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 | dual-format-roundtrip | D4A66B4B3D2B578EBE87FAF606BF0C30904DC4795B894CF542BE631D9114323C | 94E62CBB679EB2B833AC6CA9AEC1959D7B207CDDF43699A4D4D11A260CC21BF6 | E94A2AAA4572533D348DEDC56CBBD09C54A250FC34870C763AD235C0EAD103A4 |
 
 ## 裁决
+
+Current Channel 其余三个组合现已完成首次四项运行，各统一报告的 `validate-report` 退出码均为 `0`，但 TeX 检查均为 `failed`。TeX Live 2024／2025 的原生沙箱成功启动、引擎退出码 `1`，良性公式未生成 PDF；MiKTeX 的良性公式触发固定墙钟时限，亦无 PDF。后续攻击及生命周期断言未运行，不能将其判为通过。三个组合均报告 `profileDeleted=true`、`aclRestored=true`。年度版在普通环境中的合成公式编译退出码均为 `0` 且生成 PDF，隔离环境失败的原因仍待诊断。报告 SHA-256 见上表，原始材料仅在虚拟机中保留。
 
 尚未通过完整支持矩阵，阶段 1 门禁保持关闭，[Issue #8](https://github.com/Hu-GQ/FormulaBridge/issues/8) 保持开放。既有 Office 2024／TeX Live 2026 的通过结果仅覆盖该组合。

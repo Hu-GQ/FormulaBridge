@@ -54,11 +54,17 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.equal(new Set(rows.map(row => `${row[1]}/${row[2]}`)).size, 12);
   for (const [, word, tex, status, hash] of rows) {
     const hasAcceptedEvidence = word === 'Office 2024' && tex === 'TeX Live 2026';
-    const hasFailedEvidence = word === 'Microsoft 365 Current Channel' && tex === 'TeX Live 2026';
+    const currentHashes = {
+      'TeX Live 2024': 'F56F298E20728ADCEF3E685BDBC940C8E0540F4130379BB82955C13778F92830',
+      'TeX Live 2025': 'FD3803354FC0CE16822DA7E501BFBE5F52097582A92566051227831CAF5C5445',
+      'TeX Live 2026': '4BB2676FE33CF0B44D5B4283630F5EF9CB1ABC1FACCC07ACF944B89FF6750C71',
+      MiKTeX: 'A9BFAED298B0D7135F780768FEE81C1FEB4C1C2A2DD871018F0EC3CE092DDD72',
+    };
+    const hasFailedEvidence = word === 'Microsoft 365 Current Channel';
     assert.equal(status, hasAcceptedEvidence ? 'passed' : hasFailedEvidence ? 'failed' : 'pending');
     const expectedHash = hasAcceptedEvidence
       ? '44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1'
-      : hasFailedEvidence ? '4BB2676FE33CF0B44D5B4283630F5EF9CB1ABC1FACCC07ACF944B89FF6750C71' : '—';
+      : hasFailedEvidence ? currentHashes[tex] : '—';
     assert.equal(hash, expectedHash);
   }
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
@@ -70,7 +76,8 @@ test('project task checklist separates completed evidence from remaining deliver
   const partialRows = [...matrix.matchAll(/^\| (vsto-installation|source-portable-copy|dual-format-roundtrip) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \|$/gm)];
   assert.equal(partialRows.length, 3, 'three Word checks must identify evidence for every remaining Current TeX row');
   assert.equal(new Set(partialRows.flatMap(row => row.slice(2))).size, 9);
-  assert.match(matrix, /尚缺各发行版的 TeX 隔离检查和统一报告，三行继续保持 `pending`/);
+  assert.match(matrix, /这九项 Word 检查不能单独满足四项统一门禁/);
+  assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 首次四项运行并独立校验失败报告$/m);
   assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告$/m);
   assert.match(matrix, /Issue #8.*保持开放/);
   assert.match(checklist, /^- \[ \] 在受支持环境中通过纵向产品闭环验收$/m);

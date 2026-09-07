@@ -39,6 +39,7 @@
 - [x] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告
 - [x] 完成 Current Channel／TeX Live 2026 普通优先级复测、独立报告校验和超时残留清理
 - [x] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 的 VSTO、源码复制及双格式检查
+- [x] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 首次四项运行并独立校验失败报告
 - [ ] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁
 - [ ] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁
 - [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
