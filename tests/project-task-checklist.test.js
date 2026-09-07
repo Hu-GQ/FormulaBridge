@@ -62,6 +62,11 @@ test('project task checklist separates completed evidence from remaining deliver
     assert.equal(hash, expectedHash);
   }
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
+  assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 的 VSTO、源码复制及双格式检查$/m);
+  const partialRows = [...matrix.matchAll(/^\| (vsto-installation|source-portable-copy|dual-format-roundtrip) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \|$/gm)];
+  assert.equal(partialRows.length, 3, 'three Word checks must identify evidence for every remaining Current TeX row');
+  assert.equal(new Set(partialRows.flatMap(row => row.slice(2))).size, 9);
+  assert.match(matrix, /尚缺各发行版的 TeX 隔离检查和统一报告，三行继续保持 `pending`/);
   assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告$/m);
   assert.match(matrix, /Issue #8.*保持开放/);
   assert.match(checklist, /^- \[ \] 在受支持环境中通过纵向产品闭环验收$/m);
