@@ -36,6 +36,7 @@
 - [x] 通过运行中取消、完整 Job 清理、同宿主恢复和 Word 响应验收
 - [x] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX
 - [x] 在用户指定的独立验收虚拟机安装 Microsoft 365 Current Channel x64
+- [x] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告
 - [ ] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁
 - [ ] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁
 - [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁

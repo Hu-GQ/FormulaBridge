@@ -49,14 +49,20 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[x\] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX$/m);
   const matrix = fs.readFileSync(path.join(root, 'docs', 'phase0-support-matrix.md'), 'utf8');
   assert.match(matrix, /固定被测提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`/);
-  const rows = [...matrix.matchAll(/^\| (Office 2024|Microsoft 365 Current Channel|Microsoft 365 Monthly Enterprise Channel) \| (TeX Live 2024|TeX Live 2025|TeX Live 2026|MiKTeX) \| (passed|pending) \| ([A-F0-9]{64}|—) \|$/gm)];
+  const rows = [...matrix.matchAll(/^\| (Office 2024|Microsoft 365 Current Channel|Microsoft 365 Monthly Enterprise Channel) \| (TeX Live 2024|TeX Live 2025|TeX Live 2026|MiKTeX) \| (passed|failed|pending) \| ([A-F0-9]{64}|—) \|$/gm)];
   assert.equal(rows.length, 12, 'all supported Word/TeX combinations must remain visible');
   assert.equal(new Set(rows.map(row => `${row[1]}/${row[2]}`)).size, 12);
   for (const [, word, tex, status, hash] of rows) {
     const hasAcceptedEvidence = word === 'Office 2024' && tex === 'TeX Live 2026';
-    assert.equal(status, hasAcceptedEvidence ? 'passed' : 'pending');
-    assert.equal(hash, hasAcceptedEvidence ? '44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1' : '—');
+    const hasFailedEvidence = word === 'Microsoft 365 Current Channel' && tex === 'TeX Live 2026';
+    assert.equal(status, hasAcceptedEvidence ? 'passed' : hasFailedEvidence ? 'failed' : 'pending');
+    const expectedHash = hasAcceptedEvidence
+      ? '44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1'
+      : hasFailedEvidence ? '4BB2676FE33CF0B44D5B4283630F5EF9CB1ABC1FACCC07ACF944B89FF6750C71' : '—';
+    assert.equal(hash, expectedHash);
   }
+  assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
+  assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告$/m);
   assert.match(matrix, /Issue #8.*保持开放/);
   assert.match(checklist, /^- \[ \] 在受支持环境中通过纵向产品闭环验收$/m);
   assert.match(checklist, /^- \[ \] 通过官方渠道发布签名的 FormulaBridge 1\.0$/m);

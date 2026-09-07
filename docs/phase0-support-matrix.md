@@ -2,7 +2,7 @@
 
 固定被测提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`。支持窗口按 2026-09-07 固定为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX；覆盖三个 Word 产品／通道与四个 TeX 发行版的全部 12 个组合。文档提交与被测提交分别记录，不随 main 推进改变被测代码。
 
-每行均须在该环境运行 `vsto-installation`、`source-portable-copy`、`dual-format-roundtrip`、`tex-isolation`，生成统一报告并独立执行 `validate-report`。只有四项全部通过、校验通过且临时系统改动恢复后，才能将该行标记为 `passed`。`pending` 表示尚无完整通过证据，不表示兼容性通过或失败。
+每行均须在该环境运行 `vsto-installation`、`source-portable-copy`、`dual-format-roundtrip`、`tex-isolation`，生成统一报告并独立执行 `validate-report`。只有四项全部通过、校验通过且临时系统改动恢复后，才能将该行标记为 `passed`。`pending` 表示尚无完整结果；`failed` 表示已取得未通过门禁的报告。报告校验通过不等于报告中的检查通过。
 
 | Word 产品／通道（x64） | TeX 发行版 | 状态 | 统一报告 SHA-256 |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@
 | Office 2024 | MiKTeX | pending | — |
 | Microsoft 365 Current Channel | TeX Live 2024 | pending | — |
 | Microsoft 365 Current Channel | TeX Live 2025 | pending | — |
-| Microsoft 365 Current Channel | TeX Live 2026 | pending | — |
+| Microsoft 365 Current Channel | TeX Live 2026 | failed | 4BB2676FE33CF0B44D5B4283630F5EF9CB1ABC1FACCC07ACF944B89FF6750C71 |
 | Microsoft 365 Current Channel | MiKTeX | pending | — |
 | Microsoft 365 Monthly Enterprise Channel | TeX Live 2024 | pending | — |
 | Microsoft 365 Monthly Enterprise Channel | TeX Live 2025 | pending | — |
@@ -23,7 +23,7 @@
 
 - 已通过的 Office 2024 行使用 Word `16.0.17932.20076`、`ProPlus2024Volume`、zh-CN；四项结果、报告校验和恢复记录见[项目任务清单](project-task-checklist.md)。
 - 新验收虚拟机使用 Windows 11 Pro 25H2 x64，build `26200.9168`。按用户最新要求不再复制虚拟机；未创建待删除的部分克隆。原有 TeX Live 2026 和构建工具链未重新安装。
-- Current Channel 安装器退出码为 `0`；实际 Word `16.0.20326.20132`、`O365ProPlusRetail`、x64、zh-CN，通道 ID `492350f6-3a01-4f97-b9c0-c7c6ddf67d60`。用户完成激活操作后，交互会话中的 Word COM 已成功创建、编辑和保存合成文档；`vnextdiag.ps1 -action list` 仍返回 `No licenses found`，该诊断没有提供可确认的订阅许可状态。尚未运行完整门禁。
+- Current Channel 安装器退出码为 `0`；实际 Word `16.0.20326.20132`、`O365ProPlusRetail`、x64、zh-CN，通道 ID `492350f6-3a01-4f97-b9c0-c7c6ddf67d60`。用户完成激活操作后，交互会话中的 Word COM 已成功创建、编辑和保存合成文档；`vnextdiag.ps1 -action list` 仍返回 `No licenses found`，旧许可诊断为 `TIMEBASED_SUB`／`OOB_GRACE`。不将可编辑性记为已确认订阅激活。
 - Monthly Enterprise 的目标版本为 `16.0.20228.20188`；安装文件下载退出码 `0`，尚未安装和验收。两通道的目标版本依据微软[受支持版本表](https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date)确定。
 - MiKTeX Portable 已安装，LuaHBTeX `1.25.7`，发行版 `MiKTeX 26.5 Portable`。首次健康检查因缺少 `lualatex.fmt` 失败；准备格式和依赖后，以关闭自动安装的参数完成基础编译，退出码 `0` 且生成 PDF。尚未通过隔离门禁。
 - TeX Live 2024／2025 已从 [TUG 列出的历史镜像](https://tug.org/historic/)分别安装到独立年度目录，安装退出码均为 `0`，LuaHBTeX 版本分别为 `1.18.0`／`1.22.0`，尚未运行隔离门禁。下载物的哈希用于标识本次取得的文件，不单独构成发行方签名验证。
@@ -38,6 +38,23 @@
 | TeX Live install-tl.zip | 2025 | 3E4E7AE975DCF321AF8A2CBF6AA050ABA5012DD4528255D552FA479F456C464B |
 
 完整 evidence、截图、原始日志和原始报告只保留在验收虚拟机；宿主仓库仅记录筛选后的结果、版本、提交和哈希。密码只经交互 stdin 使用。每个环境结束后移除本次新增的临时证书、打印机、计划任务、AppContainer profile 和 ACL，并恢复原系统设置；准备中的环境不能提前记为已恢复。
+
+## Current Channel／TeX Live 2026 首次运行
+
+被测提交保持固定。统一报告生成退出码 `1`，`validate-report` 退出码 `0`，报告结论 `failed`，SHA-256 为上表所列值。四项均实际执行，未经筛选的材料保留在虚拟机。
+
+| 检查 | 结果 | 已筛选结论 |
+| --- | --- | --- |
+| vsto-installation | passed | 在交互会话 1 的非提升令牌下完成安装与诊断断言 |
+| source-portable-copy | passed | 源码复制七项断言通过 |
+| dual-format-roundtrip | failed | 保存、重开及复制通过；`-ProvisionPrintCapture` 路径的 `PrintOut` 调用发生布尔参数到 `Object` 的绑定错误 |
+| tex-isolation | failed | 文件、网络、资源及固定策略断言通过；生命周期宿主超过冻结脚本的 8 分钟期限，取消、同宿主恢复和 Word 生存断言未完成 |
+
+本次 VSTO 使用非提升令牌，其余检查使用提升令牌，均在会话 1、临时 `EnableLUA=1` 下执行。冻结源码、检查断言和时间限制没有修改。报告汇总使用字符串方式读取原始 ISO 时间戳，避免 PowerShell 自动转换日期后改变 schema 要求的表示格式。
+
+超时终止后发现一个本次创建的 `FBTex` profile 和 TeX 根目录上的对应 SID ACE；已删除该 ACE 与 profile，删除 API 返回 `0`，复查指定目录及映射无残留。首次打印捕获的临时打印机已由脚本删除；VSTO 任务及首轮 Word／TeX 任务已删除。临时 Root 证书仍在受控清理清单内，UAC 尚待整个 Current Channel 环境结束后恢复，不能记为该环境已清理完成。
+
+后续按原 Office 2024 验收配置，以标准权限、显式 STA 和预配 PDF 打印机复测冻结的双格式脚本，六项断言全部通过，退出码 `0`；该检查片段 SHA-256 为 `4B7F9AD20C713B2CC4B7223590B821392C4E6E28FB4DFEC84566830BF6E971A0`。新结果单独保留，不覆盖首次失败报告，后续沿用这一打印配置。TeX 的固定生命周期超时仍是未解决的门禁问题，整行仍不能标记通过。
 
 ## 裁决
 
