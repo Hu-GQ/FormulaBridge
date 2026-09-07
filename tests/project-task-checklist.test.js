@@ -45,6 +45,19 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证$/m);
+  assert.match(checklist, /\[阶段 0 支持矩阵\]\(phase0-support-matrix\.md\)/);
+  assert.match(checklist, /^- \[x\] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX$/m);
+  const matrix = fs.readFileSync(path.join(root, 'docs', 'phase0-support-matrix.md'), 'utf8');
+  assert.match(matrix, /固定被测提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`/);
+  const rows = [...matrix.matchAll(/^\| (Office 2024|Microsoft 365 Current Channel|Microsoft 365 Monthly Enterprise Channel) \| (TeX Live 2024|TeX Live 2025|TeX Live 2026|MiKTeX) \| (passed|pending) \| ([A-F0-9]{64}|—) \|$/gm)];
+  assert.equal(rows.length, 12, 'all supported Word/TeX combinations must remain visible');
+  assert.equal(new Set(rows.map(row => `${row[1]}/${row[2]}`)).size, 12);
+  for (const [, word, tex, status, hash] of rows) {
+    const hasAcceptedEvidence = word === 'Office 2024' && tex === 'TeX Live 2026';
+    assert.equal(status, hasAcceptedEvidence ? 'passed' : 'pending');
+    assert.equal(hash, hasAcceptedEvidence ? '44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1' : '—');
+  }
+  assert.match(matrix, /Issue #8.*保持开放/);
   assert.match(checklist, /^- \[ \] 在受支持环境中通过纵向产品闭环验收$/m);
   assert.match(checklist, /^- \[ \] 通过官方渠道发布签名的 FormulaBridge 1\.0$/m);
 
