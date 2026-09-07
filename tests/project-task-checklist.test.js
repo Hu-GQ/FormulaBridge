@@ -62,6 +62,10 @@ test('project task checklist separates completed evidence from remaining deliver
     assert.equal(hash, expectedHash);
   }
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
+  assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2026 普通优先级复测、独立报告校验和超时残留清理$/m);
+  assert.match(matrix, /普通优先级没有解决该门禁问题/);
+  assert.match(matrix, /新报告 SHA-256：`4BDB7EE8AB74AB9F41A8A4D4B6BD09B3F44A04F9BDEEF3B5552639B3C6CA2218`/);
+  assert.match(matrix, /TeX 片段 SHA-256：`0C77DAB5C056CFFB2A825E718C5778D0CC317DE81E04383500D9DCFA635DCE94`/);
   assert.match(checklist, /^- \[x\] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 的 VSTO、源码复制及双格式检查$/m);
   const partialRows = [...matrix.matchAll(/^\| (vsto-installation|source-portable-copy|dual-format-roundtrip) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \| ([A-F0-9]{64}) \|$/gm)];
   assert.equal(partialRows.length, 3, 'three Word checks must identify evidence for every remaining Current TeX row');

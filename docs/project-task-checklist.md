@@ -37,6 +37,7 @@
 - [x] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX
 - [x] 在用户指定的独立验收虚拟机安装 Microsoft 365 Current Channel x64
 - [x] 完成 Current Channel／TeX Live 2026 首次四项运行并独立校验失败报告
+- [x] 完成 Current Channel／TeX Live 2026 普通优先级复测、独立报告校验和超时残留清理
 - [x] 完成 Current Channel／TeX Live 2024、2025 和 MiKTeX 的 VSTO、源码复制及双格式检查
 - [ ] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁
 - [ ] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁

@@ -56,7 +56,15 @@
 
 后续按原 Office 2024 验收配置，以标准权限、显式 STA 和预配 PDF 打印机复测冻结的双格式脚本，六项断言全部通过，退出码 `0`；该检查片段 SHA-256 为 `4B7F9AD20C713B2CC4B7223590B821392C4E6E28FB4DFEC84566830BF6E971A0`。新结果单独保留，不覆盖首次失败报告，后续沿用这一打印配置。TeX 的固定生命周期超时仍是未解决的门禁问题，整行仍不能标记通过。
 
-## 裁决
+## Current Channel／TeX Live 2026 普通优先级复测
+
+同一冻结提交使用显式 STA、仅进程级的选定 TeX PATH 和 Normal 优先级复测，未改变原生检查、8 分钟生命周期期限或产品资源策略。生命周期仍超时，取消、同宿主恢复与 Word 生存断言未完成，普通优先级没有解决该门禁问题。
+
+独立的新统一报告合并原 VSTO／源码复制通过片段、已通过的双格式复测片段和本次 TeX 失败片段：前三项 `passed`、TeX `failed`；生成退出码 `1`，`validate-report` 退出码 `0`。新报告 SHA-256：`4BDB7EE8AB74AB9F41A8A4D4B6BD09B3F44A04F9BDEEF3B5552639B3C6CA2218`；本次 TeX 片段 SHA-256：`0C77DAB5C056CFFB2A825E718C5778D0CC317DE81E04383500D9DCFA635DCE94`。上表保留首次失败报告标识，首次材料未覆盖。
+
+本次超时遗留一个 profile，队列因此停止；删除 API 返回 `0`，profile 映射已消失，TeX 根目录、受保护子目录及祖先目录未发现对应 SID ACE 残留。随后恢复串行队列。用户完成 Root 证书的交互删除后，复查临时证书在 `My`、`Root`、`TrustedPublisher` 的计数均为 `0`；UAC 及当前运行任务仍待整个环境结束后恢复。
+
+## Current Channel 其余 Word 检查
 
 Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`source-portable-copy`、`dual-format-roundtrip` 共九项检查均通过。它们均使用固定提交、交互会话 1 和标准权限；双格式检查使用显式 STA 与预配 PDF 打印机。该批任务及临时打印机已删除，默认打印机列表与运行前一致（空）。这些结果尚缺各发行版的 TeX 隔离检查和统一报告，三行继续保持 `pending`。
 
@@ -65,5 +73,7 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 | vsto-installation | C1BB9BE0B2A5FE544D7A951276E5DFA740B3DB40D14A6A6019CA31DA1F7B79C6 | 001B0E89EAD2A24C003D4DC76C4F57D77FAEEC47131D9F5D162465FD42EB5BE9 | EB0031BF73128ACCF9E77DCA9C3A0F457038A3DBFD573F6B3CF6CB7AEB5E4726 |
 | source-portable-copy | 8CC18F560A0B9749FB0AE5F758F400F3597ADF9452FC21FAC79364ED52CC3D89 | FF36F9B4C485986820C7E6471CD3C818B2994850592452D9244C970B5C75011B | 9842DC039A37A4CFA9B2A79025A19D1B6763F28C0DD1EF543249D7CB49AF1AE5 |
 | dual-format-roundtrip | D4A66B4B3D2B578EBE87FAF606BF0C30904DC4795B894CF542BE631D9114323C | 94E62CBB679EB2B833AC6CA9AEC1959D7B207CDDF43699A4D4D11A260CC21BF6 | E94A2AAA4572533D348DEDC56CBBD09C54A250FC34870C763AD235C0EAD103A4 |
+
+## 裁决
 
 尚未通过完整支持矩阵，阶段 1 门禁保持关闭，[Issue #8](https://github.com/Hu-GQ/FormulaBridge/issues/8) 保持开放。既有 Office 2024／TeX Live 2026 的通过结果仅覆盖该组合。
