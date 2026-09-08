@@ -46,6 +46,7 @@
 - [x] 安装并核对 Microsoft 365 Monthly Enterprise Channel x64 的版本与通道
 - [x] 完成 Monthly Enterprise 四个 TeX 组合的十二项 Word 检查
 - [x] 完成 Monthly Enterprise／TeX Live 2024、2025、2026 首次四项运行并独立校验失败报告
+- [x] 完成 Monthly Enterprise／MiKTeX 四项运行并独立校验失败报告
 - [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
 - [ ] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证
 - [ ] 完成阶段 0 支持矩阵裁决并关闭剩余阶段 0 Issue

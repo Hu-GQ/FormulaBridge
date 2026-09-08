@@ -66,6 +66,7 @@ test('project task checklist separates completed evidence from remaining deliver
       'TeX Live 2024': '9C6C5153440E3C330430D80E7604175E29C6B18EDA7BDE17AD5E3BEA934E7695',
       'TeX Live 2025': 'BD9C1983FDF7734FD6A16F6D1A03178020C0412E63D0C55860A130A8256FA6A9',
       'TeX Live 2026': '2C02912591B4E63285C1F70AF3FD066C0568D1B2686BECCA226634D1714A0827',
+      MiKTeX: '9AEAB9B63F8E2EA37D496FD5F57F7E160E3293B6726974A63859CA266FF70EA6',
     };
     const failedHash = word === 'Microsoft 365 Current Channel' ? currentHashes[tex]
       : word === 'Microsoft 365 Monthly Enterprise Channel' ? monthlyHashes[tex] : undefined;
@@ -79,6 +80,8 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise 四个 TeX 组合的十二项 Word 检查$/m);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／TeX Live 2024、2025、2026 首次四项运行并独立校验失败报告$/m);
+  assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／MiKTeX 四项运行并独立校验失败报告$/m);
+  assert.match(matrix, /Monthly Enterprise 四个组合的报告现已齐全，完整门禁仍未通过/);
   assert.match(checklist, /^- \[x\] 清理 Current Channel 环境临时对象并重启验证原 UAC 设置恢复$/m);
   assert.match(matrix, /恢复原 `EnableLUA=0`，重启后确认启动时间变化及注册表值为 `0`/);
   assert.match(matrix, /`openin_any=p` 拒绝读取请求的绝对输入路径/);
