@@ -6,8 +6,8 @@
 
 | Word 产品／通道（x64） | TeX 发行版 | 状态 | 统一报告 SHA-256 |
 | --- | --- | --- | --- |
-| Office 2024 | TeX Live 2024 | pending | — |
-| Office 2024 | TeX Live 2025 | pending | — |
+| Office 2024 | TeX Live 2024 | failed | E385DEB4A3A18CCE461C831B5B0C14D99B4CD92A8C5773E3E0AEF5AA552A9FC9 |
+| Office 2024 | TeX Live 2025 | failed | ECA19F019B7F033069713F18B559E38503376DACCEA912948EBAE5ED0DA21CFD |
 | Office 2024 | TeX Live 2026 | passed | 44EC59BEC6CD5E365E642772B5F92C3647415B86C77C44313C118AFFE88A5EB1 |
 | Office 2024 | MiKTeX | pending | — |
 | Microsoft 365 Current Channel | TeX Live 2024 | failed | F56F298E20728ADCEF3E685BDBC940C8E0540F4130379BB82955C13778F92830 |
@@ -75,6 +75,8 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 | dual-format-roundtrip | D4A66B4B3D2B578EBE87FAF606BF0C30904DC4795B894CF542BE631D9114323C | 94E62CBB679EB2B833AC6CA9AEC1959D7B207CDDF43699A4D4D11A260CC21BF6 | E94A2AAA4572533D348DEDC56CBBD09C54A250FC34870C763AD235C0EAD103A4 |
 
 ## 裁决
+
+Office 2024／TeX Live 2024、2025 的四项统一报告均为前三项 `passed`、TeX `failed`，生成退出码 `1`、独立 `validate-report` 退出码 `0`，SHA-256 见上表。原生 TeX 结果中 `approved-read-write-roots` 与 `immutable-executable-and-policy` 未通过，清理断言通过，其余攻击、资源和生命周期断言为 `not-run`；没有将未运行断言计为通过。
 
 Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查全部通过，使用交互会话 1、标准权限、显式 STA 和预配 PDF 打印机。打印机已删除，默认打印机列表与运行前一致（空）；完整行状态仍以包含 TeX 隔离检查的统一报告为准。
 

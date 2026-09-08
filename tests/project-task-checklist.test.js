@@ -68,8 +68,12 @@ test('project task checklist separates completed evidence from remaining deliver
       'TeX Live 2026': '2C02912591B4E63285C1F70AF3FD066C0568D1B2686BECCA226634D1714A0827',
       MiKTeX: '9AEAB9B63F8E2EA37D496FD5F57F7E160E3293B6726974A63859CA266FF70EA6',
     };
+    const officeHashes = {
+      'TeX Live 2024': 'E385DEB4A3A18CCE461C831B5B0C14D99B4CD92A8C5773E3E0AEF5AA552A9FC9',
+      'TeX Live 2025': 'ECA19F019B7F033069713F18B559E38503376DACCEA912948EBAE5ED0DA21CFD',
+    };
     const failedHash = word === 'Microsoft 365 Current Channel' ? currentHashes[tex]
-      : word === 'Microsoft 365 Monthly Enterprise Channel' ? monthlyHashes[tex] : undefined;
+      : word === 'Microsoft 365 Monthly Enterprise Channel' ? monthlyHashes[tex] : officeHashes[tex];
     const hasFailedEvidence = Boolean(failedHash);
     assert.equal(status, hasAcceptedEvidence ? 'passed' : hasFailedEvidence ? 'failed' : 'pending');
     const expectedHash = hasAcceptedEvidence
@@ -84,6 +88,7 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[x\] 清理 Monthly Enterprise 环境临时对象并重启验证原 UAC 设置恢复$/m);
   assert.match(checklist, /^- \[x\] 在独立验收虚拟机恢复 Office 2024 原验收版本以补齐年度版与 MiKTeX 矩阵$/m);
   assert.match(checklist, /^- \[x\] 完成 Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查$/m);
+  assert.match(checklist, /^- \[x\] 完成 Office 2024／TeX Live 2024、2025 四项运行并独立校验失败报告$/m);
   assert.match(matrix, /Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查全部通过/);
   assert.match(matrix, /实际版本 `16\.0\.17932\.20076`、x64、`ProPlus2024Volume`，通道 ID `7983bac0-e531-40cf-be00-fd24fe66619c`/);
   assert.match(matrix, /Monthly Enterprise 环境清理完成：临时证书、打印机、任务、测试进程、profile 和对应 SID ACL 均无残留/);
