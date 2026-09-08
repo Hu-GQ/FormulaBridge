@@ -24,7 +24,7 @@
 - 已通过的 Office 2024 行使用 Word `16.0.17932.20076`、`ProPlus2024Volume`、zh-CN；四项结果、报告校验和恢复记录见[项目任务清单](project-task-checklist.md)。
 - 新验收虚拟机使用 Windows 11 Pro 25H2 x64，build `26200.9168`。按用户最新要求不再复制虚拟机；未创建待删除的部分克隆。原有 TeX Live 2026 和构建工具链未重新安装。
 - Current Channel 安装器退出码为 `0`；实际 Word `16.0.20326.20132`、`O365ProPlusRetail`、x64、zh-CN，通道 ID `492350f6-3a01-4f97-b9c0-c7c6ddf67d60`。用户完成激活操作后，交互会话中的 Word COM 已成功创建、编辑和保存合成文档；`vnextdiag.ps1 -action list` 仍返回 `No licenses found`，旧许可诊断为 `TIMEBASED_SUB`／`OOB_GRACE`。不将可编辑性记为已确认订阅激活。
-- Monthly Enterprise 的目标版本为 `16.0.20228.20188`；安装文件下载退出码 `0`，尚未安装和验收。两通道的目标版本依据微软[受支持版本表](https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date)确定。
+- Monthly Enterprise 已安装，下载及安装退出码均为 `0`；实际 Word `16.0.20228.20188`、x64，通道 ID `55336b82-a18d-4dd6-b5f6-9e5095c314a6`，更新源为本次本地 Monthly 安装目录。尚未通过四项验收。两通道的目标版本依据微软[受支持版本表](https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date)确定。
 - MiKTeX Portable 已安装，LuaHBTeX `1.25.7`，发行版 `MiKTeX 26.5 Portable`。首次健康检查因缺少 `lualatex.fmt` 失败；准备格式和依赖后，以关闭自动安装的参数完成基础编译，退出码 `0` 且生成 PDF。隔离门禁结果见后文。
 - TeX Live 2024／2025 已从 [TUG 列出的历史镜像](https://tug.org/historic/)分别安装到独立年度目录，安装退出码均为 `0`，LuaHBTeX 版本分别为 `1.18.0`／`1.22.0`，已运行隔离门禁，结果见后文。下载物的哈希用于标识本次取得的文件，不单独构成发行方签名验证。
 

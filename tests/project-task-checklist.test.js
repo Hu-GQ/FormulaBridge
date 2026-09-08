@@ -44,10 +44,12 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /验收环境恢复记录：临时代码签名证书在 `My`、`Root` 和 `TrustedPublisher` 中的计数均为 0；临时打印机不存在；`EnableLUA=0`/);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁$/m);
+  assert.match(checklist, /^- \[x\] 安装并核对 Microsoft 365 Monthly Enterprise Channel x64 的版本与通道$/m);
   assert.match(checklist, /^- \[ \] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证$/m);
   assert.match(checklist, /\[阶段 0 支持矩阵\]\(phase0-support-matrix\.md\)/);
   assert.match(checklist, /^- \[x\] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX$/m);
   const matrix = fs.readFileSync(path.join(root, 'docs', 'phase0-support-matrix.md'), 'utf8');
+  assert.match(matrix, /实际 Word `16\.0\.20228\.20188`、x64，通道 ID `55336b82-a18d-4dd6-b5f6-9e5095c314a6`/);
   assert.match(matrix, /固定被测提交：`7e36332c61ab780c7ad13e61cdc3354071d6d45f`/);
   const rows = [...matrix.matchAll(/^\| (Office 2024|Microsoft 365 Current Channel|Microsoft 365 Monthly Enterprise Channel) \| (TeX Live 2024|TeX Live 2025|TeX Live 2026|MiKTeX) \| (passed|failed|pending) \| ([A-F0-9]{64}|—) \|$/gm)];
   assert.equal(rows.length, 12, 'all supported Word/TeX combinations must remain visible');

@@ -43,6 +43,7 @@
 - [x] 清理 Current Channel 环境临时对象并重启验证原 UAC 设置恢复
 - [ ] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁
 - [ ] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁
+- [x] 安装并核对 Microsoft 365 Monthly Enterprise Channel x64 的版本与通道
 - [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
 - [ ] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证
 - [ ] 完成阶段 0 支持矩阵裁决并关闭剩余阶段 0 Issue
