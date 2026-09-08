@@ -83,6 +83,8 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／MiKTeX 四项运行并独立校验失败报告$/m);
   assert.match(checklist, /^- \[x\] 清理 Monthly Enterprise 环境临时对象并重启验证原 UAC 设置恢复$/m);
   assert.match(checklist, /^- \[x\] 在独立验收虚拟机恢复 Office 2024 原验收版本以补齐年度版与 MiKTeX 矩阵$/m);
+  assert.match(checklist, /^- \[x\] 完成 Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查$/m);
+  assert.match(matrix, /Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查全部通过/);
   assert.match(matrix, /实际版本 `16\.0\.17932\.20076`、x64、`ProPlus2024Volume`，通道 ID `7983bac0-e531-40cf-be00-fd24fe66619c`/);
   assert.match(matrix, /Monthly Enterprise 环境清理完成：临时证书、打印机、任务、测试进程、profile 和对应 SID ACL 均无残留/);
   assert.match(matrix, /Monthly Enterprise 四个组合的报告现已齐全，完整门禁仍未通过/);
