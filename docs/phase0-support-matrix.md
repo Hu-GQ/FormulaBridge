@@ -76,6 +76,8 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 
 ## 裁决
 
+Office 2024 剩余三行使用用户指定的独立虚拟机：ODT 安装退出码 `0`，完成于 `2026-09-08T11:13:48.7889586Z`；实际版本 `16.0.17932.20076`、x64、`ProPlus2024Volume`，通道 ID `7983bac0-e531-40cf-be00-fd24fe66619c`。原 TeX Live 2026 和构建工具链保留，未复制虚拟机；验收仍使用冻结提交及原签名 MSI。安装完成仅代表环境就绪，三个新组合的结果仍待原生运行和独立报告校验。
+
 Monthly Enterprise 环境清理完成：临时证书、打印机、任务、测试进程、profile 和对应 SID ACL 均无残留，默认打印机列表与运行前一致。MiKTeX 超时遗留 profile 删除 API 返回 `0`，其安装根目录及 `C:\` 的两条临时 SID 规则均已删除。恢复原 `EnableLUA=0` 后重启，核实启动时间为 `2026-09-08T11:03:55.5000000Z`、UAC 为 `0`，冻结工作树仍为指定提交且干净；此后才开始 Office 2024 安装。
 
 Monthly Enterprise／MiKTeX 的四项统一报告已完成：前三项 `passed`、TeX `failed`，生成退出码 `1`、`validate-report` 退出码 `0`，SHA-256 见上表。此次良性编译已越过启动门槛，文件、网络、资源与固定策略探针通过，但生命周期仍超过冻结脚本的 8 分钟期限，取消、同宿主恢复和 Word 生存断言未完成。本次结果不追溯改写 Current Channel／MiKTeX 首次运行的失败结果。Monthly Enterprise 四个组合的报告现已齐全，完整门禁仍未通过。
