@@ -45,7 +45,10 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Current Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[ \] 在 Microsoft 365 Monthly Enterprise Channel x64 上通过阶段 0 统一门禁$/m);
   assert.match(checklist, /^- \[x\] 安装并核对 Microsoft 365 Monthly Enterprise Channel x64 的版本与通道$/m);
-  assert.match(checklist, /^- \[ \] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证$/m);
+  assert.match(checklist, /^- \[x\] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证$/m);
+  assert.match(checklist, /^- \[x\] 清理 Office 2024 补充矩阵临时对象并重启验证原 UAC 设置恢复$/m);
+  assert.match(checklist, /^- \[x\] 完成十二行执行结果裁决：一行通过、十一行失败，阶段 1 门禁保持关闭$/m);
+
   assert.match(checklist, /\[阶段 0 支持矩阵\]\(phase0-support-matrix\.md\)/);
   assert.match(checklist, /^- \[x\] 明确完整 TeX 支持窗口为 TeX Live 2024、2025、2026 和当前稳定 MiKTeX$/m);
   const matrix = fs.readFileSync(path.join(root, 'docs', 'phase0-support-matrix.md'), 'utf8');
@@ -83,6 +86,7 @@ test('project task checklist separates completed evidence from remaining deliver
     assert.equal(hash, expectedHash);
   }
   assert.match(matrix, /报告校验通过不等于报告中的检查通过/);
+  assert.match(matrix, /Office 2024 补充矩阵清理完成/);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise 四个 TeX 组合的十二项 Word 检查$/m);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／TeX Live 2024、2025、2026 首次四项运行并独立校验失败报告$/m);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／MiKTeX 四项运行并独立校验失败报告$/m);

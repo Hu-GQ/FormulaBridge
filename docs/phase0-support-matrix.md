@@ -52,7 +52,7 @@
 
 本次 VSTO 使用非提升令牌，其余检查使用提升令牌，均在会话 1、临时 `EnableLUA=1` 下执行。冻结源码、检查断言和时间限制没有修改。报告汇总使用字符串方式读取原始 ISO 时间戳，避免 PowerShell 自动转换日期后改变 schema 要求的表示格式。
 
-超时终止后发现一个本次创建的 `FBTex` profile 和 TeX 根目录上的对应 SID ACE；已删除该 ACE 与 profile，删除 API 返回 `0`，复查指定目录及映射无残留。首次打印捕获的临时打印机已由脚本删除；VSTO 任务及首轮 Word／TeX 任务已删除。临时 Root 证书仍在受控清理清单内，UAC 尚待整个 Current Channel 环境结束后恢复，不能记为该环境已清理完成。
+超时终止后发现一个本次创建的 `FBTex` profile 和 TeX 根目录上的对应 SID ACE；已删除该 ACE 与 profile，删除 API 返回 `0`，复查指定目录及映射无残留。首次打印捕获的临时打印机已由脚本删除；VSTO 任务及首轮 Word／TeX 任务已删除。该轮结束时尚待清理的 Root 证书及 UAC 已在 Current Channel 最终清理检查点恢复。
 
 后续按原 Office 2024 验收配置，以标准权限、显式 STA 和预配 PDF 打印机复测冻结的双格式脚本，六项断言全部通过，退出码 `0`；该检查片段 SHA-256 为 `4B7F9AD20C713B2CC4B7223590B821392C4E6E28FB4DFEC84566830BF6E971A0`。新结果单独保留，不覆盖首次失败报告，后续沿用这一打印配置。TeX 的固定生命周期超时仍是未解决的门禁问题，整行仍不能标记通过。
 
@@ -62,7 +62,7 @@
 
 独立的新统一报告合并原 VSTO／源码复制通过片段、已通过的双格式复测片段和本次 TeX 失败片段：前三项 `passed`、TeX `failed`；生成退出码 `1`，`validate-report` 退出码 `0`。新报告 SHA-256：`4BDB7EE8AB74AB9F41A8A4D4B6BD09B3F44A04F9BDEEF3B5552639B3C6CA2218`；本次 TeX 片段 SHA-256：`0C77DAB5C056CFFB2A825E718C5778D0CC317DE81E04383500D9DCFA635DCE94`。上表保留首次失败报告标识，首次材料未覆盖。
 
-本次超时遗留一个 profile，队列因此停止；删除 API 返回 `0`，profile 映射已消失，TeX 根目录、受保护子目录及祖先目录未发现对应 SID ACE 残留。随后恢复串行队列。用户完成 Root 证书的交互删除后，复查临时证书在 `My`、`Root`、`TrustedPublisher` 的计数均为 `0`；UAC 及当前运行任务仍待整个环境结束后恢复。
+本次超时遗留一个 profile，队列因此停止；删除 API 返回 `0`，profile 映射已消失，TeX 根目录、受保护子目录及祖先目录未发现对应 SID ACE 残留。随后恢复串行队列。用户完成 Root 证书的交互删除后，复查临时证书在 `My`、`Root`、`TrustedPublisher` 的计数均为 `0`；UAC 及任务已在 Current Channel 最终清理检查点恢复。
 
 ## Current Channel 其余 Word 检查
 
@@ -76,24 +76,26 @@ Current Channel／TeX Live 2024、2025 和 MiKTeX 的 `vsto-installation`、`sou
 
 ## 裁决
 
+Office 2024 补充矩阵清理完成：临时证书、打印机、任务、测试进程、AppContainer profile 和对应 SID ACL 均无残留，默认打印机列表与原设置一致。MiKTeX profile 删除 API 返回 `0`，安装根目录与 `C:\` 的两条临时规则均已删除。恢复原 `EnableLUA=0` 并重启，确认启动时间为 `2026-09-08T16:31:25.5000000Z`，UAC 为 `0`；冻结工作树仍为指定提交且干净。
+
 Office 2024／MiKTeX 的统一报告为前三项 `passed`、TeX `failed`，生成退出码 `1`、独立 `validate-report` 退出码 `0`，SHA-256 见上表。文件、网络、资源及固定策略探针通过，但生命周期宿主超过冻结脚本的期限，取消、同宿主恢复和 Word 生存断言未完成。全部 12 行现已有同一提交的四项报告，1 行通过、11 行失败；矩阵执行覆盖完成不等于支持门禁通过。
 
 Office 2024／TeX Live 2024、2025 的四项统一报告均为前三项 `passed`、TeX `failed`，生成退出码 `1`、独立 `validate-report` 退出码 `0`，SHA-256 见上表。原生 TeX 结果中 `approved-read-write-roots` 与 `immutable-executable-and-policy` 未通过，清理断言通过，其余攻击、资源和生命周期断言为 `not-run`；没有将未运行断言计为通过。
 
 Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查全部通过，使用交互会话 1、标准权限、显式 STA 和预配 PDF 打印机。打印机已删除，默认打印机列表与运行前一致（空）；完整行状态仍以包含 TeX 隔离检查的统一报告为准。
 
-Office 2024 剩余三行使用用户指定的独立虚拟机：ODT 安装退出码 `0`，完成于 `2026-09-08T11:13:48.7889586Z`；实际版本 `16.0.17932.20076`、x64、`ProPlus2024Volume`，通道 ID `7983bac0-e531-40cf-be00-fd24fe66619c`。原 TeX Live 2026 和构建工具链保留，未复制虚拟机；验收仍使用冻结提交及原签名 MSI。安装完成仅代表环境就绪，三个新组合的结果仍待原生运行和独立报告校验。
+Office 2024 剩余三行使用用户指定的独立虚拟机：ODT 安装退出码 `0`，完成于 `2026-09-08T11:13:48.7889586Z`；实际版本 `16.0.17932.20076`、x64、`ProPlus2024Volume`，通道 ID `7983bac0-e531-40cf-be00-fd24fe66619c`。原 TeX Live 2026 和构建工具链保留，未复制虚拟机；验收仍使用冻结提交及原签名 MSI。三个新组合现已完成原生运行和独立报告校验，结果见上表。
 
 Monthly Enterprise 环境清理完成：临时证书、打印机、任务、测试进程、profile 和对应 SID ACL 均无残留，默认打印机列表与运行前一致。MiKTeX 超时遗留 profile 删除 API 返回 `0`，其安装根目录及 `C:\` 的两条临时 SID 规则均已删除。恢复原 `EnableLUA=0` 后重启，核实启动时间为 `2026-09-08T11:03:55.5000000Z`、UAC 为 `0`，冻结工作树仍为指定提交且干净；此后才开始 Office 2024 安装。
 
 Monthly Enterprise／MiKTeX 的四项统一报告已完成：前三项 `passed`、TeX `failed`，生成退出码 `1`、`validate-report` 退出码 `0`，SHA-256 见上表。此次良性编译已越过启动门槛，文件、网络、资源与固定策略探针通过，但生命周期仍超过冻结脚本的 8 分钟期限，取消、同宿主恢复和 Word 生存断言未完成。本次结果不追溯改写 Current Channel／MiKTeX 首次运行的失败结果。Monthly Enterprise 四个组合的报告现已齐全，完整门禁仍未通过。
 
-Monthly Enterprise 四个 TeX 组合的十二项 Word 检查全部通过。TeX Live 2024／2025／2026 的首次统一报告均为前三项 `passed`、TeX `failed`，独立 `validate-report` 退出码均为 `0`，SHA-256 见上表。2024／2025 良性编译退出 `1` 且无 PDF；2026 良性编译通过，但生命周期仍超过固定期限。2026 超时后移除了 TeX 根目录及两个祖先目录的三条对应 SID 规则，profile 删除 API 返回 `0`，复查规则和映射无残留；随后继续 MiKTeX。临时证书及 UAC 尚待整个环境结束后恢复。
+Monthly Enterprise 四个 TeX 组合的十二项 Word 检查全部通过。TeX Live 2024／2025／2026 的首次统一报告均为前三项 `passed`、TeX `failed`，独立 `validate-report` 退出码均为 `0`，SHA-256 见上表。2024／2025 良性编译退出 `1` 且无 PDF；2026 良性编译通过，但生命周期仍超过固定期限。2026 超时后移除了 TeX 根目录及两个祖先目录的三条对应 SID 规则，profile 删除 API 返回 `0`，复查规则和映射无残留；随后继续 MiKTeX。环境结束后的证书清理及 UAC 恢复已完成，见清理记录。
 
 Current Channel 环境结束后已核查：本次临时证书、打印机、任务、测试进程、`FBTex` profile 和指定 TeX 根目录／祖先目录的随机 package SID ACE 均无残留。已恢复原 `EnableLUA=0`，重启后确认启动时间变化及注册表值为 `0`。此恢复检查点完成后才开始 Monthly Enterprise 安装。
 
 补充环境诊断使用同一冻结源码的沙箱环境变量与命令参数，在普通进程中编译相同合成输入：TeX Live 2024／2025 均退出 `1`，确认 `openin_any=p` 拒绝读取请求的绝对输入路径；2026 退出 `0` 且生成 PDF。该诊断定位了年度版在受限输入配置下的兼容性差异，未放宽策略、修改冻结提交或替代矩阵门禁。
 
-Current Channel 其余三个组合现已完成首次四项运行，各统一报告的 `validate-report` 退出码均为 `0`，但 TeX 检查均为 `failed`。TeX Live 2024／2025 的原生沙箱成功启动、引擎退出码 `1`，良性公式未生成 PDF；MiKTeX 的良性公式触发固定墙钟时限，亦无 PDF。后续攻击及生命周期断言未运行，不能将其判为通过。三个组合均报告 `profileDeleted=true`、`aclRestored=true`。年度版在普通环境中的合成公式编译退出码均为 `0` 且生成 PDF，隔离环境失败的原因仍待诊断。报告 SHA-256 见上表，原始材料仅在虚拟机中保留。
+Current Channel 其余三个组合现已完成首次四项运行，各统一报告的 `validate-report` 退出码均为 `0`，但 TeX 检查均为 `failed`。TeX Live 2024／2025 的原生沙箱成功启动、引擎退出码 `1`，良性公式未生成 PDF；MiKTeX 的良性公式触发固定墙钟时限，亦无 PDF。后续攻击及生命周期断言未运行，不能将其判为通过。三个组合均报告 `profileDeleted=true`、`aclRestored=true`。年度版在普通环境中的合成公式编译退出码均为 `0` 且生成 PDF，受限输入路径兼容性诊断见上文。报告 SHA-256 见上表，原始材料仅在虚拟机中保留。
 
 尚未通过完整支持矩阵，阶段 1 门禁保持关闭，[Issue #8](https://github.com/Hu-GQ/FormulaBridge/issues/8) 保持开放。既有 Office 2024／TeX Live 2026 的通过结果仅覆盖该组合。
