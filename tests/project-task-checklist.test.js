@@ -81,6 +81,8 @@ test('project task checklist separates completed evidence from remaining deliver
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise 四个 TeX 组合的十二项 Word 检查$/m);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／TeX Live 2024、2025、2026 首次四项运行并独立校验失败报告$/m);
   assert.match(checklist, /^- \[x\] 完成 Monthly Enterprise／MiKTeX 四项运行并独立校验失败报告$/m);
+  assert.match(checklist, /^- \[x\] 清理 Monthly Enterprise 环境临时对象并重启验证原 UAC 设置恢复$/m);
+  assert.match(matrix, /Monthly Enterprise 环境清理完成：临时证书、打印机、任务、测试进程、profile 和对应 SID ACL 均无残留/);
   assert.match(matrix, /Monthly Enterprise 四个组合的报告现已齐全，完整门禁仍未通过/);
   assert.match(checklist, /^- \[x\] 清理 Current Channel 环境临时对象并重启验证原 UAC 设置恢复$/m);
   assert.match(matrix, /恢复原 `EnableLUA=0`，重启后确认启动时间变化及注册表值为 `0`/);
