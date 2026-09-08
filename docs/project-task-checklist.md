@@ -51,6 +51,7 @@
 - [x] 在独立验收虚拟机恢复 Office 2024 原验收版本以补齐年度版与 MiKTeX 矩阵
 - [x] 完成 Office 2024／TeX Live 2024、2025 和 MiKTeX 的九项 Word 检查
 - [x] 完成 Office 2024／TeX Live 2024、2025 四项运行并独立校验失败报告
+- [x] 完成 Office 2024／MiKTeX 四项运行并独立校验失败报告
 - [x] 在 Office 2024 Word x64 上通过阶段 0 统一门禁
 - [ ] 在支持窗口内的 TeX Live 与 MiKTeX 矩阵上重复隔离验证
 - [ ] 完成阶段 0 支持矩阵裁决并关闭剩余阶段 0 Issue
